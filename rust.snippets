@@ -1,4 +1,5 @@
 snippet sncompe
+	// Reference: https://github.com/matajupi/matajupilib_snippets
 	// 　∧＿∧
 	// （｡･ﻌ･｡)つ━☆・*。
 	// ⊂　　 ノ 　　　✧・゜+.
@@ -1505,5 +1506,39 @@ snippet sncombination
 	
 	        self.comb(total, k)
 	    }
+	}
+	
+snippet snreindexedges
+	fn reindex_edges(n: usize, es: &Vec<(usize, usize)>, root: usize)
+	        -> (Vec<usize>, Vec<usize>) {
+	    let es = es.iit()
+	        .enumerate()
+	        .map(|(i,(u,v))| (u, v, i))
+	        .colv();
+	    let g = graph!(n, &es, undirected, weighted);
+	
+	    let mut e2i = vec![0; n-1];
+	    let mut i2e = vec![usize::MAX; n];
+	
+	    fn dfs(
+	        v: usize,
+	        par: usize,
+	        g: &WGraph<usize>,
+	        e2i: &mut Vec<usize>, 
+	        i2e: &mut Vec<usize>,
+	    ) {
+	        for &(u, e) in &g[v] {
+	            if u == par {
+	                continue;
+	            }
+	            e2i[e] = u;
+	            i2e[u] = e;
+	            dfs(u, v, g, e2i, i2e);
+	        }
+	    }
+	
+	    dfs(root, usize::MAX, &g, &mut e2i, &mut i2e);
+	
+	    (e2i, i2e)
 	}
 	
