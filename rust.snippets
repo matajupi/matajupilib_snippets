@@ -1,0 +1,1509 @@
+snippet sncompe
+	// 　∧＿∧
+	// （｡･ﻌ･｡)つ━☆・*。
+	// ⊂　　 ノ 　　　✧・゜+.
+	// 　しーＪ　　　°。+ *´¨)
+	// 　　　　　　　　　.· ´¸.·´¨) ¸.·¨)
+	// 　　　　　　　　　　(¸.·´ ✧(¸.·’*✧
+	
+	#![allow(dead_code, unused_imports, unused_macros)]
+	
+	#[macro_use]
+	mod matajupilib {
+	    use crate::*;
+	
+	    // =============================================================================
+	    // Macros
+	    // =============================================================================
+	    macro_rules! chmin {
+	        (\$a:expr, \$b:expr) => {
+	            if \$b < \$a {
+	                \$a = \$b;
+	                true
+	            } else {
+	                false
+	            }
+	        };
+	    }
+	
+	    macro_rules! chmax {
+	        (\$a:expr, \$b:expr) => {
+	            if \$b > \$a {
+	                \$a = \$b;
+	                true
+	            } else {
+	                false
+	            }
+	        };
+	    }
+	
+	    /// Debug print macro (Only works in Debug builds; ignored in Release builds)
+	    macro_rules! d {
+	        (\$(\$a:expr),* \$(,)?) => {
+	            #[cfg(debug_assertions)]
+	            eprintln!(concat!(\$(stringify!(\$a), " = {:?}, "),*), \$(\$a),*);
+	        };
+	    }
+	
+	    // =============================================================================
+	    // Constants & Type Aliases
+	    // =============================================================================
+	    pub const INF: i64 = 4_000_000_000_000_000_000;
+	    pub const INF32: i32 = 1_000_000_000;
+	
+	    pub const DX4: [i64; 4] = [1, 0, -1, 0];
+	    pub const DY4: [i64; 4] = [0, 1, 0, -1];
+	    pub const DX8: [i64; 8] = [1, 1, 0, -1, -1, -1, 0, 1];
+	    pub const DY8: [i64; 8] = [0, 1, 1, 1, 0, -1, -1, -1];
+	
+	    pub type MinHeap<T> = BinaryHeap<R<T>>;
+	    pub type MaxHeap<T> = BinaryHeap<T>;
+	
+	    // =============================================================================
+	    // Type Cast Traits
+	    // =============================================================================
+	    macro_rules! define_cast_trait {
+	        (\$trait_name:ident, \$fn_name:ident, \$target_type:ty, \$(\$source_type:ty),*) => {
+	            pub trait \$trait_name {
+	                fn \$fn_name(self) -> \$target_type;
+	            }
+	            \$(
+	                impl \$trait_name for \$source_type {
+	                    #[inline]
+	                    fn \$fn_name(self) -> \$target_type { self as \$target_type }
+	                }
+	            )*
+	        };
+	    }
+	
+	    define_cast_trait!(
+	        AsUsize, u, usize, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, char,
+	        f32, f64
+	    );
+	    define_cast_trait!(
+	        AsI64, i, i64, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, char, f32,
+	        f64
+	    );
+	    define_cast_trait!(
+	        AsF64, f, f64, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
+	    );
+	
+	    pub trait AsMint {
+	        fn m(self) -> Mint;
+	    }
+	
+	    impl<T> AsMint for T
+	    where
+	        T: Into<Mint>,
+	    {
+	        #[inline]
+	        fn m(self) -> Mint {
+	            self.into()
+	        }
+	    }
+	
+	    // =============================================================================
+	    // Helper Traits
+	    // =============================================================================
+	    pub trait Unwrapper<T> {
+	        fn uw(self) -> T;
+	        fn uwor(self, default: T) -> T;
+	        fn uworelse<F>(self, f: F) -> T
+	        where
+	            F: FnOnce() -> T;
+	    }
+	
+	    impl<T> Unwrapper<T> for Option<T> {
+	        #[inline]
+	        fn uw(self) -> T {
+	            self.expect("None value")
+	        }
+	        #[inline]
+	        fn uwor(self, default: T) -> T {
+	            self.unwrap_or(default)
+	        }
+	        #[inline]
+	        fn uworelse<F>(self, f: F) -> T
+	        where
+	            F: FnOnce() -> T,
+	        {
+	            self.unwrap_or_else(f)
+	        }
+	    }
+	
+	    impl<T, E: std::fmt::Debug> Unwrapper<T> for Result<T, E> {
+	        #[inline]
+	        fn uw(self) -> T {
+	            self.expect("Err value")
+	        }
+	        #[inline]
+	        fn uwor(self, default: T) -> T {
+	            self.unwrap_or(default)
+	        }
+	        #[inline]
+	        fn uworelse<F>(self, f: F) -> T
+	        where
+	            F: FnOnce() -> T,
+	        {
+	            self.unwrap_or_else(|_| f())
+	        }
+	    }
+	
+	    pub trait ShortNumOps: Sized {
+	        fn sadd(self, rhs: Self) -> Self;
+	        fn ssub(self, rhs: Self) -> Self;
+	        fn smul(self, rhs: Self) -> Self;
+	        fn oadd(self, rhs: Self) -> (Self, bool);
+	        fn osub(self, rhs: Self) -> (Self, bool);
+	        fn omul(self, rhs: Self) -> (Self, bool);
+	    }
+	
+	    macro_rules! impl_short_num_ops {
+	        (\$(\$t:ty),*) => { \$(
+	            impl ShortNumOps for \$t {
+	                #[inline] fn sadd(self, rhs: Self) -> Self { self.saturating_add(rhs) }
+	                #[inline] fn ssub(self, rhs: Self) -> Self { self.saturating_sub(rhs) }
+	                #[inline] fn smul(self, rhs: Self) -> Self { self.saturating_mul(rhs) }
+	                #[inline] fn oadd(self, rhs: Self) -> (Self, bool) { self.overflowing_add(rhs) }
+	                #[inline] fn osub(self, rhs: Self) -> (Self, bool) { self.overflowing_sub(rhs) }
+	                #[inline] fn omul(self, rhs: Self) -> (Self, bool) { self.overflowing_mul(rhs) }
+	            }
+	        )* };
+	    }
+	    impl_short_num_ops!(
+	        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize
+	    );
+	
+	    pub trait MapExt<K, V> {
+	        fn orins(&mut self, key: K, default: V) -> &mut V;
+	        fn ordef(&mut self, key: K) -> &mut V
+	        where
+	            V: Default;
+	        fn orwith<F: FnOnce() -> V>(&mut self, key: K, f: F) -> &mut V;
+	    }
+	
+	    impl<K: Eq + Hash, V, S: BuildHasher> MapExt<K, V> for HashMap<K, V, S> {
+	        #[inline]
+	        fn orins(&mut self, key: K, default: V) -> &mut V {
+	            self.entry(key).or_insert(default)
+	        }
+	        #[inline]
+	        fn ordef(&mut self, key: K) -> &mut V
+	        where
+	            V: Default,
+	        {
+	            self.entry(key).or_default()
+	        }
+	        #[inline]
+	        fn orwith<F: FnOnce() -> V>(&mut self, key: K, f: F) -> &mut V {
+	            self.entry(key).or_insert_with(f)
+	        }
+	    }
+	
+	    impl<K: Ord, V> MapExt<K, V> for BTreeMap<K, V> {
+	        #[inline]
+	        fn orins(&mut self, key: K, default: V) -> &mut V {
+	            self.entry(key).or_insert(default)
+	        }
+	        #[inline]
+	        fn ordef(&mut self, key: K) -> &mut V
+	        where
+	            V: Default,
+	        {
+	            self.entry(key).or_default()
+	        }
+	        #[inline]
+	        fn orwith<F: FnOnce() -> V>(&mut self, key: K, f: F) -> &mut V {
+	            self.entry(key).or_insert_with(f)
+	        }
+	    }
+	
+	    pub trait StrExt {
+	        fn cv(&self) -> Vec<char>;
+	    }
+	
+	    impl StrExt for str {
+	        #[inline]
+	        fn cv(&self) -> Vec<char> {
+	            self.chars().collect()
+	        }
+	    }
+	
+	    // =============================================================================
+	    // Iterator Extensions
+	    // =============================================================================
+	    pub trait IntoIterExt: IntoIterator + Sized {
+	        #[inline]
+	        fn iit(self) -> Self::IntoIter {
+	            self.into_iter()
+	        }
+	        #[inline]
+	        fn col<B: FromIterator<Self::Item>>(self) -> B {
+	            self.into_iter().collect()
+	        }
+	        #[inline]
+	        fn colv(self) -> Vec<Self::Item> {
+	            self.into_iter().collect()
+	        }
+	    }
+	    impl<T: IntoIterator> IntoIterExt for T {}
+	
+	    pub trait IterExt {
+	        #[inline]
+	        fn it(&self) -> <&Self as IntoIterator>::IntoIter
+	        where
+	            for<'a> &'a Self: IntoIterator,
+	        {
+	            self.into_iter()
+	        }
+	        #[inline]
+	        fn itm(&mut self) -> <&mut Self as IntoIterator>::IntoIter
+	        where
+	            for<'a> &'a mut Self: IntoIterator,
+	        {
+	            self.into_iter()
+	        }
+	    }
+	    impl<T: ?Sized> IterExt for T {}
+	}
+	
+	// =============================================================================
+	// Imports & Main
+	// =============================================================================
+	use ::num::{integer::*, *};
+	use ac_library::*;
+	use amplify::*;
+	use itertools::Itertools;
+	use omniswap::swap;
+	use ordered_float::OrderedFloat as OF;
+	use proconio::{marker::*, *};
+	use rand::Rng;
+	use std::cmp::{Reverse as R, *};
+	use std::collections::{HashMap as Map, HashSet as Set, *};
+	use std::f64::consts::*;
+	use std::hash::{BuildHasher, Hash};
+	use std::mem::*;
+	use superslice::Ext;
+	
+	use ac_library::ModInt998244353 as Mint;
+	use matajupilib::*;
+	
+	fn solve() {
+	
+	}
+	
+	fn main() {
+	    solve();
+	}
+
+snippet snneighbor
+	use num::Num;
+	
+	fn neighbor4<T>(x: T, y: T, w: T, h: T) -> Vec<(T, T)>
+	where
+	    T: Copy + PartialOrd + Num,
+	{
+	    let zero = T::zero();
+	    let one = T::one();
+	    let neg = T::zero() - T::one();
+	    let dirs = [
+	        (one, zero), (neg, zero),
+	        (zero, one), (zero, neg),
+	    ];
+	    dirs
+	        .into_iter()
+	        .map(|(dx, dy)| (x + dx, y + dy))
+	        .filter(|&(nx, ny)| zero <= nx && nx < w && zero <= ny && ny < h)
+	        .collect()
+	}
+	
+	fn neighbor8<T>(x: T, y: T, w: T, h: T) -> Vec<(T, T)>
+	where
+	    T: Copy + PartialOrd + Num,
+	{
+	    let zero = T::zero();
+	    let one = T::one();
+	    let neg = T::zero() - T::one();
+	    let dirs = [
+	        (one, one), (one, zero), (one, neg), (zero, one),
+	        (zero, neg), (neg, one), (neg, zero), (neg, neg),
+	    ];
+	    dirs
+	        .into_iter()
+	        .map(|(dx, dy)| (x + dx, y + dy))
+	        .filter(|&(nx, ny)| zero <= nx && nx < w && zero <= ny && ny < h)
+	        .collect()
+	}
+
+snippet snmatrix
+	use ndarray::{array, Array2};
+	
+	fn mat_dot<R: Semiring>(lhs: &Array2<R::S>, rhs: &Array2<R::S>) -> Array2<R::S> {
+	    let (r1, c1) = lhs.dim();
+	    let (r2, c2) = rhs.dim();
+	    if c1 != r2 {
+	        panic!("illegal dimension: ({}, {}), ({}, {})", r1, c1, r2, c2);
+	    }
+	
+	    let zero = R::add_identity();
+	    let mut res = Array2::from_elem((r1, c2), zero);
+	
+	    for i in 0..r1 {
+	        for k in 0..r2 {
+	            for j in 0..c2 {
+	                let term = R::mul(&lhs[[i, k]], &rhs[[k, j]]);
+	                let current = res[[i, j]].clone();
+	                res[[i, j]] = R::add(&current, &term);
+	            }
+	        }
+	    }
+	    res
+	}
+	
+	fn mat_pow<R: Semiring>(mat: &Array2<R::S>, n: u64) -> Array2<R::S> {
+	    let mut mat = mat.clone();
+	    let mut n = n;
+	
+	    let (r, c) = mat.dim();
+	    if r != c {
+	        panic!("illegal dimension: ({}, {})", r, c);
+	    }
+	
+	    let zero = R::add_identity();
+	    let one = R::mul_identity();
+	
+	    let mut res = Array2::from_elem((r, c), zero);
+	    for i in 0..r {
+	        res[[i, i]] = one.clone();
+	    }
+	
+	    while n > 0 {
+	        if n & 1 != 0 {
+	            res = mat_dot::<R>(&res, &mat);
+	        }
+	        mat = mat_dot::<R>(&mat, &mat);
+	        n >>= 1;
+	    }
+	    res
+	}
+	
+snippet snmath
+	fn enum_primes(n: u32) -> Vec<u32> {
+	    let mut primes = vec![];
+	    if n < 2 {
+	        return primes;
+	    }
+	
+	    let mut sieve = vec![true; (n + 1).u()];
+	    sieve[0] = false;
+	    sieve[1] = false;
+	
+	    let mut p = 1;
+	    while p * p <= n {
+	        if sieve[p.u()] {
+	            for q in (p * p..=n).step_by(p.u()) {
+	                sieve[q.u()] = false;
+	            }
+	        }
+	        p += 1;
+	    }
+	    for p in 2..=n {
+	        if sieve[p.u()] {
+	            primes.push(p);
+	        }
+	    }
+	
+	    primes
+	}
+
+snippet sngraph
+	type WGraph<T> = Vec<Vec<(usize, T)>>;
+	type UGraph = Vec<Vec<usize>>;
+
+	macro_rules! graph {
+	    (\$n:expr, \$es:expr, directed, weighted) => {{
+	        let mut g = vec![vec![]; \$n.u()];
+	        for &(u, v, w) in \$es {
+	            g[u.u()].push((v.u(), w));
+	        }
+	        g
+	    }};
+	    (\$n:expr, \$es:expr, directed, unweighted) => {{
+	        let mut g = vec![vec![]; \$n.u()];
+	        for &(u, v) in \$es {
+	            g[u.u()].push(v.u());
+	        }
+	        g
+	    }};
+	    (\$n:expr, \$es:expr, undirected, weighted) => {{
+	        let mut g = vec![vec![]; \$n.u()];
+	        for &(u, v, w) in \$es {
+	            g[u.u()].push((v.u(), w));
+	            g[v.u()].push((u.u(), w));
+	        }
+	        g
+	    }};
+	    (\$n:expr, \$es:expr, undirected, unweighted) => {{
+	        let mut g = vec![vec![]; \$n.u()];
+	        for &(u, v) in \$es {
+	            g[u.u()].push(v.u());
+	            g[v.u()].push(u.u());
+	        }
+	        g
+	    }};
+	}
+
+snippet sncmprs
+	use std::hash::Hash;
+	
+	fn coord_compress<T>(src: &[T]) -> (HashMap<T, usize>, Vec<T>)
+	where
+	    T: Ord + Clone + Hash,
+	{
+	    let src_iter = src
+	        .iter()
+	        .cloned()
+	        .sorted()
+	        .dedup();
+	    let i2v = src_iter
+	        .clone()
+	        .collect::<Vec<_>>();
+	    let v2i = src_iter
+	        .enumerate()
+	        .map(|(i, x)| (x, i))
+	        .collect::<HashMap<_, _>>();
+	    (v2i, i2v)
+	}
+
+snippet snfactorize
+	fn factorize(mut n: i64, pfs: &mut HashMap<i64, usize>) {
+	    let mut p = 2;
+	    while p*p <= n {
+	        let mut e = 0;
+	        while n % p == 0 {
+	            n /= p;
+	            e += 1;
+	        }
+	        if e > 0 {
+	            *pfs.entry(p).or_insert(0) += e;
+	        }
+	        p += 1;
+	    }
+	    if n != 1 {
+	        *pfs.entry(n).or_insert(0) += 1;
+	    }
+	}
+	
+
+snippet snrollinghash
+	use std::ops::{Bound, RangeBounds};
+	
+	#[derive(Debug, Clone)]
+	struct RollingHash {
+	    n: usize,
+	    b: u128,
+	    m: u128,
+	    prefix: Vec<u128>,
+	    suffix: Vec<u128>,
+	    power: Vec<u128>,
+	}
+	
+	impl RollingHash {
+	    // 2 <= b < m, gcd(b, m) = 1
+	    // e.g. b = 2025, m = 998244353
+	    fn new<T>(s: &[T], b: u128, m: u128) -> Self
+	    where
+	        T: Into<u128> + Copy
+	    {
+	        let n = s.len();
+	
+	        let mut prefix = vec![0u128; n+1];
+	        let mut suffix = vec![0u128; n+1];
+	        let mut power = vec![1u128; n+1];
+	
+	        for i in 0..n {
+	            let val_fwd: u128 = s[i].into();
+	            let val_rev: u128 = s[n-i-1].into();
+	
+	            prefix[i+1] = ((prefix[i]*b)%m + val_fwd)%m;
+	            suffix[i+1] = ((suffix[i]*b)%m + val_rev)%m;
+	            power[i+1] = (power[i]*b)%m;
+	        }
+	
+	        Self {
+	            n, b, m,
+	            prefix,
+	            suffix,
+	            power,
+	        }
+	    }
+	
+	    fn get_range<R>(&self, range: R, rev: bool) -> (usize, usize)
+	    where
+	        R: RangeBounds<usize>
+	    {
+	        let l = match range.start_bound() {
+	            Bound::Included(l) => *l,
+	            Bound::Excluded(l) => l + 1,
+	            Bound::Unbounded => 0,
+	        };
+	        let r = match range.end_bound() {
+	            Bound::Included(r) => r + 1,
+	            Bound::Excluded(r) => *r,
+	            Bound::Unbounded => self.n,
+	        };
+	
+	        assert!(l <= r && r <= self.n, "Index out of bounds");
+	
+	        if rev {
+	            (self.n - r, self.n - l)
+	        }
+	        else {
+	            (l, r)
+	        }
+	    }
+	
+	    // H(S[range])
+	    fn hash<R>(&self, range: R, rev: bool) -> u128
+	    where
+	        R: RangeBounds<usize>
+	    {
+	        let (l, r) = self.get_range(range, rev);
+	        let seq = if rev { &self.suffix } else { &self.prefix };
+	        self.hash_helper(l, r, seq)
+	    }
+	
+	    fn hash_helper(&self, l: usize ,r: usize, seq: &Vec<u128>) -> u128 {
+	        (self.m + seq[r] - (self.power[r-l]*seq[l])%self.m)%self.m
+	    }
+	
+	    // H(S1 + S2) (l2 = |S2|)
+	    fn concat(&self, h1: u128, h2: u128, l2: usize) -> u128 {
+	        ((self.power[l2]*h1)%self.m + h2)%self.m
+	    }
+	
+	    // LCP(S[range1], S[range2])
+	    fn lcp<R1, R2>(&self, range1: R1, rev1: bool, range2: R2, rev2: bool) -> usize
+	    where
+	        R1: RangeBounds<usize>,
+	        R2: RangeBounds<usize>,
+	    {
+	        let (l1, r1) = self.get_range(range1, rev1);
+	        let (l2, r2) = self.get_range(range2, rev2);
+	
+	        let seq1 = if rev1 { &self.suffix } else { &self.prefix };
+	        let seq2 = if rev2 { &self.suffix } else { &self.prefix };
+	
+	        let mut lb = 0;
+	        let mut ub = min(r1 - l1, r2 - l2) + 1;
+	        while ub - lb > 1 {
+	            let mid = (ub + lb) / 2;
+	            if self.hash_helper(l1, l1+mid, seq1) == self.hash_helper(l2, l2+mid, seq2) {
+	                lb = mid;
+	            }
+	            else {
+	                ub = mid;
+	            }
+	        }
+	        lb
+	    }
+	}
+
+snippet snrangeaddrangemin
+	// M1 = (i64, min, inf)
+	// M2 = (i64, +, 0)
+	// f_x(a) = a + x
+	// f_x(min(a,b)) = min(a,b) + x = min(a+x, b+x) = min(f_x(a), f_x(b))
+	// f_{x+y}(a) = a + x + y = f_x(f_y(a))
+	struct RangeAddRangeMin;
+	impl MapMonoid for RangeAddRangeMin {
+	    type M = Min<i64>;
+	    type F = <Self::M as Monoid>::S;
+	    fn identity_map() -> Self::F {
+	        0
+	    }
+	    fn mapping(f: &Self::F, x: &<Self::M as Monoid>::S) -> <Self::M as Monoid>::S {
+	        *f + *x
+	    }
+	    fn composition(f: &Self::F, g: &Self::F) -> Self::F {
+	        *f + *g
+	    }
+	}
+
+snippet snrangeaddrangemax
+	// M1 = (i64, max, -inf)
+	// M2 = (i64, +, 0)
+	// f_x(a) = a + x
+	// f_x(max(a,b)) = max(a,b) + x = max(a+x, b+x) = max(f_x(a), f_x(b))
+	// f_{x+y}(a) = a + x + y = f_x(f_y(a))
+	struct RangeAddRangeMax;
+	impl MapMonoid for RangeAddRangeMax {
+	    type M = Max<i64>;
+	    type F = <Self::M as Monoid>::S;
+	    fn identity_map() -> Self::F {
+	        0
+	    }
+	    fn mapping(f: &Self::F, x: &<Self::M as Monoid>::S) -> <Self::M as Monoid>::S {
+	        *f + *x
+	    }
+	    fn composition(f: &Self::F, g: &Self::F) -> Self::F {
+	        *f + *g
+	    }
+	}
+
+snippet snsumsize
+	#[derive(Clone, Copy, Debug)]
+	struct SumSize {
+	    sum: i64,
+	    size: usize,
+	}
+	
+	impl SumSize {
+	    fn new(sum: i64) -> Self {
+	        Self { sum: sum, size: 1 }
+	    }
+	}
+	
+	struct SumMonoid;
+	impl Monoid for SumMonoid {
+	    type S = SumSize;
+	    fn identity() -> Self::S {
+	        SumSize { sum: 0, size: 0 }
+	    }
+	    fn binary_operation(a: &Self::S, b: &Self::S) -> Self::S {
+	        SumSize {
+	            sum: a.sum + b.sum,
+	            size: a.size + b.size,
+	        }
+	    }
+	}
+
+snippet snrangeaddrangesum
+	// M1 = ((i64, usize), (+,+), (0, 0))
+	// M2 = (i64, +, 0)
+	// f_x((a, b)) = (a+x*b, b)
+	// f_x((a, b)+(c, d)) = (a+c+x*(b+d), b+d) = ((a+x*b)+(c+x*d), b+d) = f_x((a, b)) + f_x((c, d))
+	// f_{x+y}((a, b)) = (a+x*b+y*b, b) = f_x(f_y((a, b)))
+	struct RangeAddRangeSum;
+	impl MapMonoid for RangeAddRangeSum {
+	    type M = SumMonoid;
+	    type F = i64;
+	    fn identity_map() -> Self::F {
+	        0
+	    }
+	    fn mapping(f: &Self::F, x: &<Self::M as Monoid>::S) -> <Self::M as Monoid>::S {
+	        SumSize {
+	            sum: x.sum + (*f * x.size as i64),
+	            size: x.size,
+	        }
+	    }
+	    fn composition(f: &Self::F, g: &Self::F) -> Self::F {
+	        *f + *g
+	    }
+	}
+
+snippet snrangesetrangemin
+	// M1 = (i64, min, inf)
+	// M2 = (Option<i64>, or, None)
+	// f_x(a) = x.uor(a) (uor = unwrap_or)
+	// f_x(min(a,b)) = x.uor(min(a,b)) = min(x.uor(a), x.uor(b)) = min(f_x(a), f_x(b))
+	// f_{x.or(y)}(a) = (x.or(y)).uor(a) = x.uor(y.uor(a)) = f_x(f_y(a))
+	struct RangeSetRangeMin;
+	impl MapMonoid for RangeSetRangeMin {
+	    type M = Min<i64>;
+	    type F = Option<<Self::M as Monoid>::S>;
+	    fn identity_map() -> Self::F {
+	        None
+	    }
+	    fn mapping(f: &Self::F, x: &<Self::M as Monoid>::S) -> <Self::M as Monoid>::S {
+	        f.unwrap_or(*x)
+	    }
+	    fn composition(f: &Self::F, g: &Self::F) -> Self::F {
+	        f.or(*g)
+	    }
+	}
+
+snippet snrangesetrangemax
+	// M1 = (i64, max, -inf)
+	// M2 = (Option<i64>, or, None)
+	// f_x(a) = x.uor(a) (uor = unwrap_or)
+	// f_x(max(a,b)) = x.uor(max(a,b)) = max(x.uor(a), x.uor(b)) = max(f_x(a), f_x(b))
+	// f_{x.or(y)}(a) = (x.or(y)).uor(a) = x.uor(y.uor(a)) = f_x(f_y(a))
+	struct RangeSetRangeMax;
+	impl MapMonoid for RangeSetRangeMax {
+	    type M = Max<i64>;
+	    type F = Option<<Self::M as Monoid>::S>;
+	    fn identity_map() -> Self::F {
+	        None
+	    }
+	    fn mapping(f: &Self::F, x: &<Self::M as Monoid>::S) -> <Self::M as Monoid>::S {
+	        f.unwrap_or(*x)
+	    }
+	    fn composition(f: &Self::F, g: &Self::F) -> Self::F {
+	        f.or(*g)
+	    }
+	}
+
+snippet snrangesetrangesum
+	// M1 = ((i64, usize), (+,+), (0, 0))
+	// M2 = (Option<i64>, or, None)
+	// f_x((a, b)) = if x == Some(v) then (v*b, b) else (a, b)
+	// f_x((a, b)+(c, d)) = (v*b+v*d, b+d) = f_x((a, b)) + f_x((c, d)) (x = Some(v))
+	// f_x((a, b)+(c, d)) = (a+c, b+d) = f_x((a, b)) + f_x((c, d)) (x = None)
+	// f_{x.or(y)}((a, b)) = (v*b, b) = f_x(f_y((a, b))) (x = Some(v), y = _)
+	// f_{x.or(y)}((a, b)) = (v*b, b) = f_x(f_y((a, b))) (x = None, y = Some(v))
+	// f_{x.or(y)}((a, b)) = (a, b) = f_x(f_y((a, b))) (x = None, y = None)
+	struct RangeSetRangeSum;
+	impl MapMonoid for RangeSetRangeSum {
+	    type M = SumMonoid;
+	    type F = Option<i64>;
+	    fn identity_map() -> Self::F {
+	        None
+	    }
+	    fn mapping(f: &Self::F, x: &<Self::M as Monoid>::S) -> <Self::M as Monoid>::S {
+	        match *f {
+	            Some(v) => SumSize {
+	                sum: v * x.size as i64,
+	                size: x.size,
+	            },
+	            None => *x,
+	        }
+	    }
+	    fn composition(f: &Self::F, g: &Self::F) -> Self::F {
+	        f.or(*g)
+	    }
+	}
+
+snippet snrangeaffinerangesum
+	// M1 = ((i64, usize), (+, +), (0, 0))
+	// M2 = ((i64, i64), comp, (1, 0))
+	// comp((a1, b1), (a2, b2)) = (a1*a2, a1*b2+b1)
+	// f_{(a,b)}((x, y)) = (a*x + b*y, y)
+	// f_{(a,b)}((x1, y1)+(x2, y2)) = (a*(x1+x2) + b*(y1+y2), y1+y2)
+	//      = (a*x1+b*y1 + a*x2+b*y2, y1+y2) = f_{(a,b)}((x1, y1)) + f_{(a,b)}((x2, y2))
+	// f_{comp((a1,b1),(a2,b2))}((x, y)) = (a1*a2*x + (a1*b2+b1)*y, y)
+	//      = (a1*a2*x + a1*b2*y + b1*y, y) = f_{(a1,b1)}((a2*x + b2*y, y))
+	//      = f_{(a1,b1)}(f_{(a2,b2)}((x, y)))
+	#[derive(Clone, Copy, Debug)]
+	struct Affine {
+	    a: i64,
+	    b: i64,
+	}
+	
+	impl Affine {
+	    fn new(a: i64, b: i64) -> Self {
+	        Self { a: a, b: b }
+	    }
+	}
+	
+	struct RangeAffineRangeSum;
+	impl MapMonoid for RangeAffineRangeSum {
+	    type M = SumMonoid;
+	    type F = Affine;
+	    fn identity_map() -> Self::F {
+	        Affine { a: 1, b: 0 }
+	    }
+	    fn mapping(f: &Self::F, x: &<Self::M as Monoid>::S) -> <Self::M as Monoid>::S {
+	        SumSize {
+	            sum: f.a * x.sum + f.b * (x.size as i64),
+	            size: x.size,
+	        }
+	    }
+	    fn composition(f: &Self::F, g: &Self::F) -> Self::F {
+	        Affine {
+	            a: f.a * g.a,
+	            b: f.a * g.b + f.b,
+	        }
+	    }
+	}
+
+snippet sncustommonoid
+	// Monoid (S, *, 1)
+	// a * 1 = 1 * a = a
+	// (a * b) * c = a * (b * c)
+	struct CustomMonoid;
+	impl Monoid for CustomMonoid {
+	    type S = todo!();
+	    fn identity() -> Self::S {
+	        todo!()
+	    }
+	    fn binary_operation(a: &Self::S, b: &Self::S) -> Self::S {
+	        todo!()
+	    }
+	}
+
+snippet sncustommapmonoid
+	// M = (S, +, 0) is Monoid
+	// M' = (F, *, 1) is Monoid
+	// f_x(a) = a * x
+	// f_x(a + b) = (a + b)*x = a*x + b*x = f_x(a) + f_x(b)
+	// f_{x*y}(a) = a * x * y = f_x(f_y(a))
+	struct CustomMapMonoid;
+	impl MapMonoid for CustomMapMonoid {
+	    type M = todo!();
+	    type F = todo!();
+	    fn identity_map() -> Self::F {
+	        todo!()
+	    }
+	    fn mapping(f: &Self::F, x: &<Self::M as Monoid>::S) -> <Self::M as Monoid>::S {
+	        todo!()
+	    }
+	    fn composition(f: &Self::F, g: &Self::F) -> Self::F {
+	        todo!()
+	    }
+	}
+
+snippet sncustomsemiring
+	// Semiring (S, +, 0, *, 1)
+	// (S, +, 0) is Commutative Monoid
+	// (S, *, 1) is Monoid
+	// a*(b + c) = a*b + a*c
+	// (a + b)*c = a*c + b*c
+	// 0 * a = a * 0 = 0
+	struct CustomSemiring;
+	impl Semiring for CustomSemiring {
+	    type S = todo!();
+	    fn add_identity() -> Self::S {
+	        todo!()
+	    }
+	    fn add(a: &Self::S, b: &Self::S) -> Self::S {
+	        todo!()
+	    }
+	    fn mul_identity() -> Self::S {
+	        todo!()
+	    }
+	    fn mul(a: &Self::S, b: &Self::S) -> Self::S {
+	        todo!()
+	    }
+	}
+
+snippet snscanner
+	use std::io::Read;
+	
+	struct Scanner {
+	    iter: std::vec::IntoIter<String>,
+	}
+	
+	impl Scanner {
+	    fn new() -> Self {
+	        let mut s = String::new();
+	        std::io::stdin().read_to_string(&mut s).unwrap();
+	        Self {
+	            iter: s.split_whitespace().map(|s| s.to_string()).collect::<Vec<_>>().into_iter(),
+	        }
+	    }
+	    fn n<T: std::str::FromStr>(&mut self) -> T {
+	        self.iter.next().unwrap().parse().ok().unwrap()
+	    }
+	    fn ns<T: std::str::FromStr>(&mut self, n: usize) -> Vec<T> {
+	        (0..n).map(|_| self.n()).collect()
+	    }
+	}
+
+snippet sntoposort
+	fn topological_sort(g: &UGraph) -> Option<Vec<usize>> {
+	    let n = g.len();
+	    let mut indeg = vec![0; n];
+	    for u in 0..n {
+	        for &v in &g[u] {
+	            indeg[v] += 1;
+	        }
+	    }
+	
+	    let mut que = VecDeque::new();
+	    for u in 0..n {
+	        if indeg[u] == 0 {
+	            que.push_front(u);
+	        }
+	    }
+	    let mut topo_order = vec![];
+	
+	    while !que.is_empty() {
+	        let u = que.pop_front().uw();
+	        topo_order.push(u);
+	        for &v in &g[u] {
+	            indeg[v] -= 1;
+	            if indeg[v] == 0 {
+	                que.push_back(v);
+	            }
+	        }
+	    }
+	
+	    if topo_order.len() == n {
+	        Some(topo_order)
+	    }
+	    else {
+	        None
+	    }
+	}
+
+snippet sndijkstra
+	fn dijkstra(g: &WGraph<i64>, start: usize) -> Vec<i64> {
+	    let n = g.len();
+	    let mut dist = vec![i64::MAX; n];
+	    let mut que = BinaryHeap::new();
+	    dist[start] = 0;
+	    que.push(Reverse((dist[start], start)));
+	
+	    while !que.is_empty() {
+	        let Reverse((d, u)) = que.pop().uw();
+	        if dist[u] < d {
+	            continue;
+	        }
+	        for &(v, c) in &g[u] {
+	            if chmin!(dist[v], dist[u] + c) {
+	                que.push(Reverse((dist[v], v)));
+	            }
+	        }
+	    }
+	
+	    dist
+	}
+
+snippet snscc
+	fn scc_graph(g: &UGraph) -> (UGraph, Vec<usize>, Vec<Vec<usize>>) {
+	    let n = g.len();
+	    let mut sccg = SccGraph::new(n);
+	    for u in 0..n {
+	        for &v in &g[u] {
+	            sccg.add_edge(u, v);
+	        }
+	    }
+	
+	    let sccs = sccg.scc();
+	    let m = sccs.len();
+	
+	    let mut to_scc = vec![0; n];
+	    for i in 0..m {
+	        for &u in &sccs[i] {
+	            to_scc[u] = i;
+	        }
+	    }
+	
+	    let mut uv_scc = set!{};
+	    for u in 0..n {
+	        for &v in &g[u] {
+	            let u = to_scc[u];
+	            let v = to_scc[v];
+	            if u == v {
+	                continue;
+	            }
+	            uv_scc.insert((u, v));
+	        }
+	    }
+	    let uv_scc = uv_scc.into_iter()
+	        .collect_vec();
+	    let g_scc = graph!(m, &uv_scc, directed, unweighted);
+	
+	    (g_scc, to_scc, sccs)
+	}
+	
+snippet snsemiring
+	trait Semiring {
+	    type S: Clone;
+	    fn add_identity() -> Self::S;
+	    fn add(a: &Self::S, b: &Self::S) -> Self::S;
+	    fn mul_identity() -> Self::S;
+	    fn mul(a: &Self::S, b: &Self::S) -> Self::S;
+	}
+	
+snippet snmodintsemiring
+	struct ModIntSemiring;
+	impl Semiring for ModIntSemiring {
+	    type S = Mint;
+	    fn add_identity() -> Self::S { Mint::new(0) }
+	    fn add(a: &Self::S, b: &Self::S) -> Self::S { a + b }
+	    fn mul_identity() -> Self::S { Mint::new(1) }
+	    fn mul(a: &Self::S, b: &Self::S) -> Self::S { a * b }
+	}
+	
+snippet snminplussemiring
+	struct MinPlusSemiring;
+	impl Semiring for MinPlusSemiring {
+	    type S = i64;
+	    fn add_identity() -> Self::S { i64::MAX }
+	    fn add(a: &Self::S, b: &Self::S) -> Self::S { min(*a, *b) }
+	    fn mul_identity() -> Self::S { 0 }
+	    fn mul(a: &Self::S, b: &Self::S) -> Self::S {
+	        let inf = Self::add_identity();
+	        if *a >= inf || *b >= inf {
+	            inf
+	        }
+	        else {
+	            a + b
+	        }
+	    }
+	}
+	
+snippet snmaxplussemiring
+	struct MaxPlusSemiring;
+	impl Semiring for MaxPlusSemiring {
+	    type S = i64;
+	    fn add_identity() -> Self::S { i64::MIN }
+	    fn add(a: &Self::S, b: &Self::S) -> Self::S { max(*a, *b) }
+	    fn mul_identity() -> Self::S { 0 }
+	    fn mul(a: &Self::S, b: &Self::S) -> Self::S {
+	        let inf = Self::add_identity();
+	        if *a <= inf || *b <= inf {
+	            inf
+	        }
+	        else {
+	            a + b
+	        }
+	    }
+	}
+	
+snippet snxorandsemiring
+	struct XorAndSemiring;
+	impl Semiring for XorAndSemiring {
+	    type S = u64;
+	    fn add_identity() -> Self::S { 0 }
+	    fn add(a: &Self::S, b: &Self::S) -> Self::S { *a ^ *b }
+	    fn mul_identity() -> Self::S { u64::MAX }
+	    fn mul(a: &Self::S, b: &Self::S) -> Self::S { *a & *b }
+	}
+	
+snippet snrangegcd
+	struct RangeGcd;
+	impl Monoid for RangeGcd {
+	    type S = i64;
+	    fn identity() -> Self::S {
+	        0
+	    }
+	    fn binary_operation(a: &Self::S, b: &Self::S) -> Self::S {
+	        gcd(*a, *b)
+	    }
+	}
+	
+snippet snrangelcm
+	struct RangeLcm;
+	impl Monoid for RangeLcm {
+	    type S = i64;
+	    fn identity() -> Self::S {
+	        1
+	    }
+	    fn binary_operation(a: &Self::S, b: &Self::S) -> Self::S {
+	        lcm(*a, *b)
+	    }
+	}
+	
+snippet snosak
+	struct Osa_k {
+	    spf: Vec<usize>,
+	}
+	
+	impl Osa_k {
+	    fn new(max_val: usize) -> Self {
+	        let mut spf = (0..=max_val).collect_vec();
+	        let mut i = 2;
+	        while i * i <= max_val {
+	            if spf[i] == i {
+	                let mut j = i * i;
+	                while j <= max_val {
+	                    if spf[j] == j {
+	                        spf[j] = i;
+	                    }
+	                    j += i;
+	                }
+	            }
+	            i += 1;
+	        }
+	        Self { spf }
+	    }
+	    fn factorize(&self, mut x: usize) -> Vec<(usize, usize)> {
+	        let mut res = vec![];
+	        while x > 1 {
+	            let p = self.spf[x];
+	            let mut e = 0;
+	            while x % p == 0 {
+	                x /= p;
+	                e += 1;
+	            }
+	            res.push((p, e));
+	        }
+	        res
+	    }
+	}
+
+snippet snmultiset
+	// https://zenn.dev/silva/articles/3af7df176849c2
+	#[allow(dead_code)]
+	mod procon_lib {
+	    use std::{
+	        borrow::Borrow,
+	        collections::{
+	            btree_map::{self},
+	            BTreeMap,
+	        },
+	        ops::{Bound, RangeBounds},
+	    };
+	
+	    #[derive(Debug, PartialEq, Clone)]
+	    pub struct MultiSet<T> {
+	        size: usize,
+	        btree_map: BTreeMap<T, usize>,
+	    }
+	
+	    impl<T: Ord> Default for MultiSet<T> {
+	        fn default() -> Self {
+	            Self::new()
+	        }
+	    }
+	
+	    impl<T: Ord> From<Vec<T>> for MultiSet<T> {
+	        fn from(value: Vec<T>) -> Self {
+	            let size = value.len();
+	
+	            let mut btree_map = BTreeMap::default();
+	            for key in value {
+	                *btree_map.entry(key).or_insert(0) += 1;
+	            }
+	
+	            Self { size, btree_map }
+	        }
+	    }
+	
+	    impl<T: Ord> MultiSet<T> {
+	        pub fn clear(&mut self) {
+	            self.size = 0;
+	            self.btree_map.clear();
+	        }
+	
+	        pub fn contains<Q>(&self, value: &Q) -> bool
+	        where
+	            T: Borrow<Q>,
+	            Q: Ord + ?Sized,
+	        {
+	            self.btree_map.contains_key(value)
+	        }
+	
+	        pub fn insert(&mut self, value: T) {
+	            self.size += 1;
+	            *self.btree_map.entry(value).or_insert(0) += 1;
+	        }
+	
+	        pub fn first(&self) -> Option<&T> {
+	            if let Some((key, _)) = self.btree_map.iter().next() {
+	                Some(key)
+	            } else {
+	                None
+	            }
+	        }
+	
+	        pub fn last(&self) -> Option<&T> {
+	            if let Some((key, _)) = self.btree_map.iter().next_back() {
+	                Some(key)
+	            } else {
+	                None
+	            }
+	        }
+	
+	        pub fn is_empty(&self) -> bool {
+	            self.btree_map.is_empty()
+	        }
+	
+	        pub fn len(&self) -> usize {
+	            self.btree_map.len()
+	        }
+	
+	        pub fn size(&self) -> usize {
+	            self.size
+	        }
+	
+	        pub fn marge(&mut self, other: &mut MultiSet<T>)
+	        where
+	            T: Clone,
+	        {
+	            self.size += other.size;
+	
+	            for (key, val) in other.btree_map.iter() {
+	                if let Some(prev) = self.btree_map.get_mut(key) {
+	                    *prev += *val;
+	                } else {
+	                    self.btree_map.insert(key.clone(), *val);
+	                }
+	            }
+	        }
+	
+	        pub fn new() -> Self {
+	            Self {
+	                size: 0,
+	                btree_map: BTreeMap::new(),
+	            }
+	        }
+	
+	        pub fn pop_first(&mut self) -> Option<T>
+	        where
+	            T: Clone,
+	        {
+	            if self.is_empty() {
+	                None
+	            } else {
+	                self.size -= 1;
+	
+	                let first = self.first().unwrap().clone();
+	                self.remove(&first);
+	                Some(first)
+	            }
+	        }
+	
+	        pub fn pop_last(&mut self) -> Option<T>
+	        where
+	            T: Clone,
+	        {
+	            if self.is_empty() {
+	                None
+	            } else {
+	                self.size -= 1;
+	
+	                let last = self.last().unwrap().clone();
+	                self.remove(&last);
+	                Some(last)
+	            }
+	        }
+	
+	        pub fn remove(&mut self, value: &T) -> bool
+	        where
+	            T: Clone,
+	        {
+	            self.btree_map.entry(value.clone()).and_modify(|e| *e -= 1);
+	            if let Some(&cnt) = self.btree_map.get(&value) {
+	                if cnt == 0 {
+	                    self.btree_map.remove(&value);
+	                }
+	
+	                self.size -= 1;
+	                true
+	            } else {
+	                false
+	            }
+	        }
+	
+	        pub fn lower_bound<Q>(&self, bound: Bound<&Q>) -> Option<&T>
+	        where
+	            T: Borrow<Q>,
+	            Q: Ord,
+	        {
+	            match bound {
+	                Bound::Unbounded => unreachable!(),
+	                _ => {
+	                    if let Some((key, _)) = self.btree_map.range((bound, Bound::Unbounded)).next() {
+	                        Some(key)
+	                    } else {
+	                        None
+	                    }
+	                }
+	            }
+	        }
+	
+	        pub fn upper_bound<Q>(&self, bound: Bound<&Q>) -> Option<&T>
+	        where
+	            T: Borrow<Q>,
+	            Q: Ord,
+	        {
+	            match bound {
+	                Bound::Unbounded => unreachable!(),
+	                _ => {
+	                    if let Some((key, _)) =
+	                        self.btree_map.range((Bound::Unbounded, bound)).next_back()
+	                    {
+	                        Some(key)
+	                    } else {
+	                        None
+	                    }
+	                }
+	            }
+	        }
+	
+	        pub fn iter(&self) -> Iter<'_, T> {
+	            Iter {
+	                range: self.range(..),
+	            }
+	        }
+	
+	        pub fn range<U: ?Sized, R>(&self, range: R) -> Range<'_, T>
+	        where
+	            U: Ord,
+	            T: Borrow<U> + Ord,
+	            R: RangeBounds<U>,
+	        {
+	            Range {
+	                last: None,
+	                counter: 0,
+	                range: self.btree_map.range(range),
+	            }
+	        }
+	
+	        pub fn count<Q>(&self, value: &Q) -> usize
+	        where
+	            T: Borrow<Q>,
+	            Q: Ord,
+	        {
+	            if let Some(&cnt) = self.btree_map.get(value) {
+	                cnt
+	            } else {
+	                0
+	            }
+	        }
+	    }
+	
+	    #[derive(Debug, Clone, Default)]
+	    pub struct Range<'a, T>
+	    where
+	        T: 'a,
+	    {
+	        last: Option<&'a T>,
+	        counter: usize,
+	        range: btree_map::Range<'a, T, usize>,
+	    }
+	
+	    impl<'a, T> Iterator for Range<'a, T> {
+	        type Item = &'a T;
+	        fn next(&mut self) -> Option<Self::Item> {
+	            if self.counter == 0 {
+	                if let Some((elem, &cnt)) = self.range.next() {
+	                    self.last = Some(elem);
+	                    self.counter = cnt - 1;
+	                    Some(elem)
+	                } else {
+	                    None
+	                }
+	            } else {
+	                self.counter -= 1;
+	                self.last
+	            }
+	        }
+	    }
+	
+	    impl<'a, T> DoubleEndedIterator for Range<'a, T> {
+	        fn next_back(&mut self) -> Option<Self::Item> {
+	            if self.counter == 0 {
+	                if let Some((elem, &cnt)) = self.range.next_back() {
+	                    self.last = Some(elem);
+	                    self.counter = cnt;
+	                    Some(elem)
+	                } else {
+	                    None
+	                }
+	            } else {
+	                self.counter -= 1;
+	                self.last
+	            }
+	        }
+	    }
+	
+	    #[derive(Clone, Debug, Default)]
+	    pub struct Iter<'a, T>
+	    where
+	        T: 'a,
+	    {
+	        range: Range<'a, T>,
+	    }
+	
+	    impl<'a, T> Iterator for Iter<'a, T> {
+	        type Item = &'a T;
+	        fn next(&mut self) -> Option<Self::Item> {
+	            self.range.next()
+	        }
+	    }
+	
+	    impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
+	        fn next_back(&mut self) -> Option<Self::Item> {
+	            self.range.next_back()
+	        }
+	    }
+	}
+	use procon_lib::MultiSet;
+
+snippet sncombination
+	pub struct Combinations {
+	    fac: Vec<Mint>,
+	    ifac: Vec<Mint>,
+	}
+	
+	impl Combinations {
+	    pub fn new() -> Self {
+	        Self {
+	            fac: vec![1.m()],
+	            ifac: vec![1.m()],
+	        }
+	    }
+	
+	    pub fn ensure(&mut self, n: usize) {
+	        if self.fac.len() > n {
+	            return;
+	        }
+	
+	        let old_len = self.fac.len();
+	        let target = n.max(old_len.saturating_mul(2));
+	
+	        assert!(
+	            target < usize::MAX,
+	            "factorial table size overflow"
+	        );
+	
+	        self.fac.resize(target + 1, 0.m());
+	        self.ifac.resize(target + 1, 0.m());
+	
+	        for i in old_len..=target {
+	            self.fac[i] = self.fac[i - 1] * i.m();
+	        }
+	
+	        self.ifac[target] = 1.m() / self.fac[target];
+	
+	        for i in (old_len..target).rev() {
+	            self.ifac[i] = self.ifac[i + 1] * (i + 1).m();
+	        }
+	    }
+	
+	    // n!
+	    pub fn factorial(&mut self, n: usize) -> Mint {
+	        self.ensure(n);
+	        self.fac[n]
+	    }
+	
+	    // 1 / n!
+	    pub fn inv_factorial(&mut self, n: usize) -> Mint {
+	        self.ensure(n);
+	        self.ifac[n]
+	    }
+	
+	    // P(n, k)
+	    pub fn perm(&mut self, n: usize, k: usize) -> Mint {
+	        if n < k {
+	            return 0.m();
+	        }
+	
+	        self.ensure(n);
+	        self.fac[n] * self.ifac[n - k]
+	    }
+	
+	    // C(n, k)
+	    pub fn comb(&mut self, n: usize, k: usize) -> Mint {
+	        if n < k {
+	            return 0.m();
+	        }
+	
+	        self.ensure(n);
+	        self.fac[n] * self.ifac[k] * self.ifac[n - k]
+	    }
+	
+	    // H(n, k)
+	    pub fn multichoose(&mut self, n: usize, k: usize) -> Mint {
+	        if n == 0 {
+	            return if k == 0 {
+	                1.m()
+	            } else {
+	                0.m()
+	            };
+	        }
+	
+	        let total = n
+	            .checked_add(k)
+	            .and_then(|x| x.checked_sub(1))
+	            .expect("multichoose argument overflow");
+	
+	        self.comb(total, k)
+	    }
+	}
+	
