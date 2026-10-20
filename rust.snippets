@@ -1542,3 +1542,259 @@ snippet snreindexedges
 	    (e2i, i2e)
 	}
 	
+snippet snhld
+	#[derive(Clone, Debug, PartialEq, Eq)]
+	struct PathSegment {
+	    range: Range<usize>,
+	    reversed: bool,
+	}
+	
+	struct Hld {
+	    n: usize,
+	    root: usize,
+	    graph: Vec<Vec<usize>>,
+	
+	    parent: Vec<usize>,
+	    depth: Vec<usize>,
+	    subtree_size: Vec<usize>,
+	    heavy: Vec<usize>,
+	
+	    head: Vec<usize>,
+	    pos: Vec<usize>,
+	    vertex_at: Vec<usize>,
+	
+	    tin: Vec<usize>,
+	    tout: Vec<usize>,
+	
+	    // euler_walk: Vec<usize>
+	}
+	
+	impl Hld {
+	    fn new(graph: Vec<Vec<usize>>, root: usize) -> Self {
+	        let n = graph.len();
+	        assert!(n > 0, "tree must not be empty");
+	        assert!(root < n, "root is out of range");
+	        assert_eq!(
+	            graph.iter().map(Vec::len).sum::<usize>(),
+	            2 * (n - 1),
+	            "graph must be an undirected tree"
+	        );
+	
+	        let none = usize::MAX;
+	        let mut parent = vec![none; n];
+	        let mut depth = vec![0usize; n];
+	        let mut order = Vec::with_capacity(n);
+	        let mut stack = vec![root];
+	        parent[root] = root;
+	
+	        // Iterative DFS to establish parent/depth and a traversal order.
+	        while let Some(v) = stack.pop() {
+	            order.push(v);
+	            for &to in graph[v].iter().rev() {
+	                if parent[to] == none {
+	                    parent[to] = v;
+	                    depth[to] = depth[v] + 1;
+	                    stack.push(to);
+	                }
+	            }
+	        }
+	        assert_eq!(order.len(), n, "graph must be connected");
+	
+	        // Subtree sizes and heavy children, in reverse DFS order.
+	        let mut subtree_size = vec![1usize; n];
+	        let mut heavy = vec![none; n];
+	        for &v in order.iter().rev() {
+	            if v == root {
+	                continue;
+	            }
+	            let p = parent[v];
+	            subtree_size[p] += subtree_size[v];
+	            if heavy[p] == none || subtree_size[v] > subtree_size[heavy[p]] {
+	                heavy[p] = v;
+	            }
+	        }
+	
+	        // Heavy-first DFS numbering.
+	        let mut head = vec![0usize; n];
+	        let mut pos = vec![0usize; n];
+	        let mut vertex_at = vec![0usize; n];
+	        let mut timer = 0usize;
+	        let mut stack = vec![root];
+	
+	        while let Some(chain_head) = stack.pop() {
+	            let mut v = chain_head;
+	            loop {
+	                head[v] = chain_head;
+	                pos[v] = timer;
+	                vertex_at[timer] = v;
+	                timer += 1;
+	
+	                for &to in &graph[v] {
+	                    if parent[to] == v && to != heavy[v] {
+	                        stack.push(to);
+	                    }
+	                }
+	
+	                if heavy[v] == none {
+	                    break;
+	                }
+	                v = heavy[v];
+	            }
+	        }
+	
+	        let tin = pos.clone();
+	        let mut tout = vec![0usize; n];
+	        for v in 0..n {
+	            tout[v] = tin[v] + subtree_size[v];
+	        }
+	
+	        Self {
+	            n,
+	            root,
+	            graph,
+	            parent,
+	            depth,
+	            subtree_size,
+	            heavy,
+	            head,
+	            pos,
+	            vertex_at,
+	            tin,
+	            tout,
+	        }
+	    }
+	
+	    fn position(&self, v: usize) -> usize {
+	        self.pos[v]
+	    }
+	
+	    fn vertex(&self, i: usize) -> usize {
+	        self.vertex_at[i]
+	    }
+	
+	    fn subtree_range(&self, v: usize) -> Range<usize> {
+	        self.tin[v]..self.tout[v]
+	    }
+	
+	    fn is_ancestor(&self, u: usize, v: usize) -> bool {
+	        self.tin[u] <= self.tin[v] && self.tin[v] < self.tout[u]
+	    }
+	
+	    fn level_ancestor(&self, mut v: usize, k: usize) -> Option<usize> {
+	        if k > self.depth[v] {
+	            return None;
+	        }
+	        while self.depth[self.head[v]] > k {
+	            v = self.parent[self.head[v]];
+	        }
+	        v = self.vertex_at[self.pos[v] - (self.depth[v] - k)];
+	        Some(v)
+	    }
+	
+	    fn lca(&self, mut u: usize, mut v: usize) -> usize {
+	        while self.head[u] != self.head[v] {
+	            if self.pos[u] > self.pos[v] {
+	                swap!(&mut u, &mut v);
+	            }
+	            v = self.parent[self.head[v]];
+	        }
+	        if self.pos[u] < self.pos[v] { u } else { v }
+	    }
+	
+	    fn jump_on_tree(&self, u: usize, v: usize, k: usize) -> Option<usize> {
+	        let w = self.lca(u, v);
+	        let dist = self.depth[u] + self.depth[v] - 2*self.depth[w];
+	        if dist < k {
+	            return None;
+	        }
+	        if k < self.depth[u] - self.depth[w] {
+	            return self.level_ancestor(u, self.depth[u] - k);
+	        }
+	        self.level_ancestor(v, self.depth[v] - (dist - k))
+	    }
+	
+	    fn path_segments(&self, mut u: usize, mut v: usize) -> Vec<PathSegment> {
+	        let w = self.lca(u, v);
+	
+	        let mut left = vec![];
+	        while self.head[u] != self.head[w] {
+	            left.push(PathSegment {
+	                range: self.pos[self.head[u]]..self.pos[u] + 1,
+	                reversed: true,
+	            });
+	            u = self.parent[self.head[u]];
+	        }
+	
+	        let mut right = vec![];
+	        while self.head[v] != self.head[w] {
+	            right.push(PathSegment {
+	                range: self.pos[self.head[v]]..self.pos[v] + 1,
+	                reversed: false,
+	            });
+	            v = self.parent[self.head[v]];
+	        }
+	
+	        if self.depth[u] >= self.depth[v] {
+	            left.push(PathSegment {
+	                range: self.pos[v]..self.pos[u] + 1,
+	                reversed: true,
+	            });
+	        }
+	        else {
+	            right.push(PathSegment {
+	                range: self.pos[u]..self.pos[v] + 1,
+	                reversed: false,
+	            });
+	        }
+	
+	        right.reverse();
+	        left.extend(right);
+	        left
+	    }
+	
+	    fn path_segments_edges(&self, u: usize, v: usize) -> Vec<PathSegment> {
+	        let lca_pos = self.pos[self.lca(u, v)];
+	        let mut result = vec![];
+	        for mut segment in self.path_segments(u, v) {
+	            if segment.range.start <= lca_pos && lca_pos < segment.range.end {
+	                if segment.range.start == lca_pos {
+	                    segment.range.start += 1;
+	                }
+	                else {
+	                    segment.range.end -= 1;
+	                }
+	            }
+	            if segment.range.start < segment.range.end {
+	                result.push(segment);
+	            }
+	        }
+	        result
+	    }
+	
+	    fn fold_path<M, F>(&self, u: usize, v: usize, mut range_prod: F) -> M::S
+	    where
+	        M: Monoid,
+	        F: FnMut(Range<usize>, bool) -> M::S,
+	    {
+	        let mut answer = M::identity();
+	        for segment in self.path_segments(u, v) {
+	            let value = range_prod(segment.range, segment.reversed);
+	            answer = M::binary_operation(&answer, &value);
+	        }
+	        answer
+	    }
+	
+	    fn fold_path_edges<M, F>(&self, u: usize, v: usize, mut range_prod: F) -> M::S
+	    where
+	        M: Monoid,
+	        F: FnMut(Range<usize>, bool) -> M::S,
+	    {
+	        let mut answer = M::identity();
+	        for segment in self.path_segments_edges(u, v) {
+	            let value = range_prod(segment.range, segment.reversed);
+	            answer = M::binary_operation(&answer, &value);
+	        }
+	        answer
+	    }
+	}
+	
