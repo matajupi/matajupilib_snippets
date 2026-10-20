@@ -1662,14 +1662,6 @@ snippet snhld
 	        }
 	    }
 	
-	    fn position(&self, v: usize) -> usize {
-	        self.pos[v]
-	    }
-	
-	    fn vertex(&self, i: usize) -> usize {
-	        self.vertex_at[i]
-	    }
-	
 	    fn subtree_range(&self, v: usize) -> Range<usize> {
 	        self.tin[v]..self.tout[v]
 	    }
@@ -1697,6 +1689,11 @@ snippet snhld
 	            v = self.parent[self.head[v]];
 	        }
 	        if self.pos[u] < self.pos[v] { u } else { v }
+	    }
+
+	    fn distance(&self, u: usize, v: usize) -> usize {
+	        let w = self.lca(u, v);
+	        self.depth[u] + self.depth[v] - 2 * self.depth[w]
 	    }
 	
 	    fn jump_on_tree(&self, u: usize, v: usize, k: usize) -> Option<usize> {
