@@ -37,6 +37,12 @@ snippet sncompe
 	            }
 	        };
 	    }
+
+	    macro_rules! r {
+	        ($num:expr, $den:expr) => {
+	            Rational64::new($num, $den)
+	        };
+	    }
 	
 	    /// Debug print macro (Only works in Debug builds; ignored in Release builds)
 	    macro_rules! d {
@@ -271,7 +277,7 @@ snippet sncompe
 	// =============================================================================
 	// Imports & Main
 	// =============================================================================
-	use ::num::{integer::*, *};
+	use ::num::{integer::*, rational::*, *};
 	use ac_library::*;
 	use amplify::*;
 	use itertools::Itertools;
