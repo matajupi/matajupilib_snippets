@@ -1805,6 +1805,7 @@ snippet sndualcompare
 	type KeyType = i64;
 	type QueryType = i64;
 	
+	#[derive(Clone, Debug)]
 	enum Wrapper {
 	    Key(KeyType),
 	    Query(QueryType),
@@ -1864,3 +1865,212 @@ snippet sndualcompare
 	        }
 	    }
 	}
+
+snippet sncht
+	// ==================== Convex Hull Trick ====================
+	// verify: https://judge.yosupo.jp/submission/413634
+	
+	type KeyType = (Line, i128, i128);
+	type QueryType = i128;
+	
+	#[derive(Clone, Debug)]
+	enum Wrapper {
+	    Key(KeyType),
+	    Query(QueryType),
+	}
+	
+	use crate::Wrapper::*;
+	
+	impl Wrapper {
+	    fn cmp_key(&self, k1: &KeyType, k2: &KeyType) -> Ordering {
+	        k1.0.a.cmp(&k2.0.a)
+	    }
+	
+	    fn cmp_query(&self, q: &QueryType, k: &KeyType) -> Ordering {
+	        0.cmp(&(k.1*q + k.2))
+	    }
+	
+	    fn key(&self) -> &KeyType {
+	        let Key(k) = &self else { unreachable!("Failed to unwrap Key(k)") };
+	        k
+	    }
+	
+	    fn query(&self) -> &QueryType {
+	        let Query(q) = &self else { unreachable!("Failed to unwrap Query(q)") };
+	        q
+	    }
+	}
+	
+	impl PartialEq for Wrapper {
+	    fn eq(&self, other: &Self) -> bool {
+	        self.cmp(other) == Ordering::Equal
+	    }
+	}
+	
+	impl Eq for Wrapper {}
+	
+	impl PartialOrd for Wrapper {
+	    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+	        Some(self.cmp(other))
+	    }
+	}
+	
+	impl Ord for Wrapper {
+	    fn cmp(&self, other: &Self) -> Ordering {
+	        match (self, other) {
+	            (Key(k1), Key(k2)) => {
+	                self.cmp_key(k1, k2)
+	            }
+	            (Query(q), Key(k)) => {
+	                self.cmp_query(q, k)
+	            }
+	            (Key(k), Query(q)) => {
+	                other.cmp_query(q, k).reverse()
+	            }
+	            (Query(_), Query(_)) => {
+	                unreachable!("Invalid comparison")
+	            }
+	        }
+	    }
+	}
+	
+	#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+	struct Line {
+	    a: i128,
+	    b: i128,
+	}
+	
+	impl Line {
+	    const fn new(a: i128, b: i128) -> Self {
+	        Self { a, b }
+	    }
+	
+	    fn eval(self, x: i64) -> i128 {
+	        self.a * x as i128 + self.b
+	    }
+	}
+	
+	struct ConvexHullTrick {
+	    lines: BTreeSet<Wrapper>,
+	    max_query: bool,
+	}
+	
+	impl ConvexHullTrick {
+	    fn new(max_query: bool) -> Self {
+	        Self {
+	            lines: BTreeSet::new(),
+	            max_query: max_query,
+	        }
+	    }
+	
+	    #[inline]
+	    fn is_bad_line(&self, lp: Line, lc: Line, ln: Line) -> bool {
+	        return (lc.b - lp.b) * (ln.a - lc.a)
+	            >= (ln.b - lc.b) * (lc.a - lp.a);
+	    }
+	
+	    // Add line y = a*x + b
+	    fn add_line(&mut self, mut a: i64, mut b: i64) {
+	        if self.max_query {
+	            a = -a;
+	            b = -b;
+	        }
+	
+	        let new = Line::new(a as i128, b as i128);
+	
+	        // 傾きが同じ直線との比較
+	        if let Some(old_w) = self.lines.get(&Key((new, 0, 0))) {
+	            if old_w.key().0.b <= new.b {
+	                return;
+	            }
+	            self.lines.remove(&old_w.clone());
+	        }
+	
+	        let mut it_back = self.lines.range(..Key((new, 0, 0)));
+	        let mut it_forw = self.lines.range(Key((new, 0, 0))..);
+	
+	        // 直線newを追加するか？
+	        if let Some(prev_w) = it_back.clone().nth_back(0)
+	            && let Some(next_w) = it_forw.clone().nth(0)
+	            && self.is_bad_line(prev_w.key().0, new, next_w.key().0)
+	        {
+	            return;
+	        }
+	
+	        let mut insert = vec![];
+	        let mut remove = vec![];
+	
+	        // new以前の直線を更新
+	        while let Some(cur_w) = it_back.clone().nth_back(0)
+	            && let Some(prev_w) = it_back.clone().nth_back(1)
+	            && self.is_bad_line(prev_w.key().0, cur_w.key().0, new)
+	        {
+	            remove.push(cur_w.clone());
+	            it_back.next_back();
+	        }
+	
+	        // newの直前の直線を更新
+	        if let Some(cur_w) = it_back.clone().nth_back(0) {
+	            remove.push(cur_w.clone());
+	
+	            let (lp, _, _) = *cur_w.key();
+	
+	            let delta_a = new.a - lp.a;
+	            let delta_b = new.b - lp.b;
+	
+	            let new_w = Key((lp, delta_a, delta_b));
+	            insert.push(new_w);
+	        }
+	
+	        // new以降の直線を更新
+	        while let Some(cur_w) = it_forw.clone().nth(0)
+	            && let Some(next_w) = it_forw.clone().nth(1)
+	            && self.is_bad_line(new, cur_w.key().0, next_w.key().0)
+	        {
+	            remove.push(cur_w.clone());
+	            it_forw.next();
+	        }
+	
+	        // 直線newを追加
+	        if let Some(cur_w) = it_forw.clone().nth(0) {
+	            let (ln, _, _) = *cur_w.key();
+	
+	            let delta_a = ln.a - new.a;
+	            let delta_b = ln.b - new.b;
+	
+	            let new_w = Key((new, delta_a, delta_b));
+	            insert.push(new_w);
+	        }
+	        else {
+	            let new_w = Key((new, IINF as i128, IINF as i128));
+	            insert.push(new_w);
+	        }
+	
+	        // linesの更新
+	        for a in remove {
+	            self.lines.remove(&a);
+	        }
+	        for a in insert {
+	            self.lines.insert(a);
+	        }
+	    }
+	
+	    fn query(&self, x: i64) -> Option<i128> {
+	        if self.lines.is_empty() {
+	            return None;
+	        }
+	        let l;
+	        if let Some(w) = self.lines.range(Query(x as i128)..).next() {
+	            l = w.key().0;
+	        }
+	        else {
+	            let w = self.lines.last().uw();
+	            l = w.key().0;
+	        }
+	        if self.max_query {
+	            return Some(-l.eval(x));
+	        }
+	        return Some(l.eval(x));
+	    }
+	}
+	
