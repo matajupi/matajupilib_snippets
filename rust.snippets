@@ -1799,4 +1799,75 @@ snippet snhld
 	        answer
 	    }
 	}
+
+snippet sndualcompare
+	// DualCompareWrapper
+	type ValueType = i64; // TODO:
+	
+	#[derive(Eq, PartialEq)]
+	struct Wrapper {
+	    value: ValueType,
+	    is_query: bool,
+	}
+	
+	impl Wrapper {
+	    fn new(value: ValueType, is_query: bool) -> Self {
+	        Self {
+	            value,
+	            is_query,
+	        }
+	    }
+	
+	    fn cmp_key(&self, other: &Self) -> Ordering {
+	        // TODO:
+	        self.value.cmp(&other.value)
+	    }
+	
+	    fn cmp_query(&self, other: &Self) -> Ordering {
+	        // TODO:
+	        0.cmp(&(other.value - self.value*2))
+	    }
+	
+	    fn compare(&self, other: &Self) -> Ordering {
+	        match (self.is_query, other.is_query) {
+	            (false, false) => {
+	                self.cmp_key(other)
+	            }
+	            (true, false) => {
+	                self.cmp_query(other)
+	            }
+	            (false, true) => {
+	                other.cmp_query(&self).reverse()
+	            }
+	            (true, true) => {
+	                self.cmp_key(other)
+	            }
+	        }
+	    }
+	}
+	
+	impl PartialOrd for Wrapper {
+	    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+	        Some(self.cmp(other))
+	    }
+	}
+	
+	impl Ord for Wrapper {
+	    fn cmp(&self, other: &Self) -> Ordering {
+	        match (self.is_query, other.is_query) {
+	            (false, false) => {
+	                self.cmp_key(other)
+	            }
+	            (true, false) => {
+	                self.cmp_query(other)
+	            }
+	            (false, true) => {
+	                other.cmp_query(&self).reverse()
+	            }
+	            (true, true) => {
+	                self.cmp_key(other)
+	            }
+	        }
+	    }
+	}
 	
