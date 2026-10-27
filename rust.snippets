@@ -1832,6 +1832,14 @@ snippet sndualcompare
 	        q
 	    }
 	}
+
+	impl PartialEq for Wrapper {
+	    fn eq(&self, other: &Self) -> bool {
+	        self.cmp(other) == Ordering::Equal
+	    }
+	}
+	
+	impl Eq for Wrapper {}
 	
 	impl PartialOrd for Wrapper {
 	    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
