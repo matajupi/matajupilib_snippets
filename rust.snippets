@@ -1802,47 +1802,34 @@ snippet snhld
 
 snippet sndualcompare
 	// DualCompareWrapper
-	type ValueType = i64; // TODO:
+	type KeyType = i64;
+	type QueryType = i64;
 	
 	#[derive(Eq, PartialEq)]
-	struct Wrapper {
-	    value: ValueType,
-	    is_query: bool,
+	enum Wrapper {
+	    Key(KeyType),
+	    Query(QueryType),
 	}
 	
+	use crate::Wrapper::*;
+	
 	impl Wrapper {
-	    fn new(value: ValueType, is_query: bool) -> Self {
-	        Self {
-	            value,
-	            is_query,
-	        }
+	    fn cmp_key(&self, k1: &KeyType, k2: &KeyType) -> Ordering {
+	        k1.cmp(&k2)
 	    }
 	
-	    fn cmp_key(&self, other: &Self) -> Ordering {
-	        // TODO:
-	        self.value.cmp(&other.value)
+	    fn cmp_query(&self, q: &QueryType, k: &KeyType) -> Ordering {
+	        0.cmp(&(k - 2*q))
 	    }
 	
-	    fn cmp_query(&self, other: &Self) -> Ordering {
-	        // TODO:
-	        0.cmp(&(other.value - self.value*2))
+	    fn key(&self) -> &KeyType {
+	        let Key(k) = &self else { unreachable!("Failed to unwrap Key(k)") };
+	        k
 	    }
 	
-	    fn compare(&self, other: &Self) -> Ordering {
-	        match (self.is_query, other.is_query) {
-	            (false, false) => {
-	                self.cmp_key(other)
-	            }
-	            (true, false) => {
-	                self.cmp_query(other)
-	            }
-	            (false, true) => {
-	                other.cmp_query(&self).reverse()
-	            }
-	            (true, true) => {
-	                self.cmp_key(other)
-	            }
-	        }
+	    fn query(&self) -> &QueryType {
+	        let Query(q) = &self else { unreachable!("Failed to unwrap Query(q)") };
+	        q
 	    }
 	}
 	
@@ -1854,20 +1841,19 @@ snippet sndualcompare
 	
 	impl Ord for Wrapper {
 	    fn cmp(&self, other: &Self) -> Ordering {
-	        match (self.is_query, other.is_query) {
-	            (false, false) => {
-	                self.cmp_key(other)
+	        match (self, other) {
+	            (Key(k1), Key(k2)) => {
+	                self.cmp_key(k1, k2)
 	            }
-	            (true, false) => {
-	                self.cmp_query(other)
+	            (Query(q), Key(k)) => {
+	                self.cmp_query(q, k)
 	            }
-	            (false, true) => {
-	                other.cmp_query(&self).reverse()
+	            (Key(k), Query(q)) => {
+	                other.cmp_query(q, k).reverse()
 	            }
-	            (true, true) => {
-	                self.cmp_key(other)
+	            (Query(_), Query(_)) => {
+	                unreachable!("Invalid comparison")
 	            }
 	        }
 	    }
 	}
-	
