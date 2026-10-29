@@ -285,13 +285,13 @@ snippet sncompe
 	use ordered_float::OrderedFloat as OF;
 	use proconio::{marker::*, *};
 	use rand::Rng;
+	use superslice::Ext;
 	use std::cmp::{Reverse as R, *};
 	use std::collections::{HashMap as Map, HashSet as Set, *};
 	use std::f64::consts::*;
 	use std::hash::{BuildHasher, Hash};
 	use std::mem::*;
 	use std::ops::{Range, RangeBounds};
-	use superslice::Ext;
 	
 	use ac_library::ModInt998244353 as Mint;
 	// type Mint = i64;
@@ -2074,3 +2074,151 @@ snippet sncht
 	    }
 	}
 	
+snippet snlichaotree
+	// ==================== Li Chao Tree ====================
+	// verify: https://judge.yosupo.jp/submission/414051
+	
+	#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+	struct Line {
+	    a: i128,
+	    b: i128,
+	}
+	
+	impl Line {
+	    const fn new(a: i128, b: i128) -> Self {
+	        Self { a, b }
+	    }
+	
+	    fn eval(self, x: i64) -> i128 {
+	        self.a * x as i128 + self.b
+	    }
+	}
+	
+	struct LiChaoTree {
+	    n: usize,
+	    sz: usize,
+	    node: Vec<Option<Line>>,
+	    x: Vec<i64>,
+	    max_query: bool,
+	    x2i: BTreeMap<i64, usize>,
+	}
+	
+	impl LiChaoTree {
+	    fn new(mut x: Vec<i64>, max_query: bool) -> Self {
+	        let sz = x.len();
+	        assert!(1 <= sz, "x length is 0");
+	
+	        let mut n = 1;
+	        while n < sz {
+	            n *= 2;
+	        }
+	
+	        let node = vec![None; 2*n - 1];
+	        x.sort();
+	        x.dedup();
+	
+	        let x2i = x.it()
+	            .cloned()
+	            .enumerate()
+	            .map(|(i, x)| (x, i))
+	            .collect::<BTreeMap<_, _>>();
+	
+	        x.resize(n, IINF);
+	
+	        Self { n, sz, node, x, max_query, x2i }
+	    }
+	
+	    fn add_line(&mut self, a: i64, b: i64) {
+	        self.add_line_range(.., a, b);
+	    }
+	
+	    fn add_line_range<R: RangeBounds<i64>>(&mut self, range: R, a: i64, b: i64) {
+	        let mut it = self.x2i.range(range);
+	
+	        let Some((_, &start)) = it.next() else {
+	            return;
+	        };
+	
+	        let end = it.next_back().map(|(_, &i)| i).uwor(start);
+	
+	        let line = Line::new(a as i128, b as i128);
+	        self.add_line_helper(start, end, line, 0, 0, self.n - 1);
+	    }
+	
+	    fn add_line_helper(&mut self, a: usize, b: usize, mut line: Line,
+	        k: usize, l: usize, r: usize)
+	    {
+	        if r < a || b < l {
+	            return;
+	        }
+	        let m = (l + r) / 2;
+	        if a <= l && r <= b {
+	            match self.node[k] {
+	                Some(node_k) => {
+	                    let mut left  = line.eval(self.x[l]) < node_k.eval(self.x[l]);
+	                    let mut mid   = line.eval(self.x[m]) < node_k.eval(self.x[m]);
+	                    let mut right = line.eval(self.x[r]) < node_k.eval(self.x[r]);
+	
+	                    if self.max_query {
+	                        left  = !left;
+	                        mid   = !mid;
+	                        right = !right;
+	                    }
+	
+	                    if left && right {
+	                        self.node[k] = Some(line);
+	                    }
+	                    else if left || right {
+	                        if mid {
+	                            self.node[k] = Some(line);
+	                            line = node_k;
+	                        }
+	                        if left != mid {
+	                            self.add_line_helper(a, b, line, 2*k+1, l, m);
+	                        }
+	                        else {
+	                            self.add_line_helper(a, b, line, 2*k+2, m + 1, r);
+	                        }
+	                    }
+	                }
+	                None => {
+	                    self.node[k] = Some(line);
+	                }
+	            }
+	        }
+	        else {
+	            self.add_line_helper(a, b, line, 2*k+1, l, m);
+	            self.add_line_helper(a, b, line, 2*k+2, m + 1, r);
+	        }
+	    }
+	
+	    fn query(&self, x: i64) -> Option<i128> {
+	        let mut k = *self.x2i.get(&x)
+	            .expect(&format!("{} is not included in x", x));
+	        k += self.n - 1;
+	
+	        let mut res = if self.max_query { i128::MIN } else { i128::MAX };
+	        loop {
+	            if let Some(line) = self.node[k] {
+	                if self.max_query {
+	                    chmax!(res, line.eval(x));
+	                }
+	                else {
+	                    chmin!(res, line.eval(x));
+	                }
+	            }
+	            if k == 0 {
+	                break;
+	            }
+	            k = (k - 1) / 2;
+	        }
+	
+	        if res == i128::MIN || res == i128::MAX {
+	            None
+	        }
+	        else {
+	            Some(res)
+	        }
+	    }
+	}
+
