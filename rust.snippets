@@ -290,10 +290,12 @@ snippet sncompe
 	use std::f64::consts::*;
 	use std::hash::{BuildHasher, Hash};
 	use std::mem::*;
-	use std::ops::Range;
+	use std::ops::{Range, RangeBounds};
 	use superslice::Ext;
 	
 	use ac_library::ModInt998244353 as Mint;
+	// type Mint = i64;
+	
 	use matajupilib::*;
 	
 	fn solve() {
@@ -462,8 +464,6 @@ snippet sngraph
 	}
 
 snippet sncmprs
-	use std::hash::Hash;
-	
 	fn coord_compress<T>(src: &[T]) -> (HashMap<T, usize>, Vec<T>)
 	where
 	    T: Ord + Clone + Hash,
