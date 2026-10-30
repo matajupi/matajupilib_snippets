@@ -1867,358 +1867,422 @@ snippet sndualcompare
 	}
 
 snippet sncht
-	// ==================== Convex Hull Trick ====================
-	// verify: https://judge.yosupo.jp/submission/413634
+	#[allow(dead_code)]
+	mod convex_hull_trick {
+	    // ==================== Convex Hull Trick ====================
+	    // verify: https://judge.yosupo.jp/submission/413634
 	
-	type KeyType = (Line, i128, i128);
-	type QueryType = i128;
+	    use crate::*;
 	
-	#[derive(Clone, Debug)]
-	enum Wrapper {
-	    Key(KeyType),
-	    Query(QueryType),
-	}
+	    type T = i128;
+	    const INF: T = IINF as i128;
 	
-	use crate::Wrapper::*;
+	    type KeyType = (Line, T, T);
+	    type QueryType = (T, T);
 	
-	impl Wrapper {
-	    fn cmp_key(&self, k1: &KeyType, k2: &KeyType) -> Ordering {
-	        k1.0.a.cmp(&k2.0.a)
+	    #[derive(Clone, Debug)]
+	    enum Wrapper {
+	        Key(KeyType),
+	        Query(QueryType),
 	    }
 	
-	    fn cmp_query(&self, q: &QueryType, k: &KeyType) -> Ordering {
-	        0.cmp(&(k.1*q + k.2))
-	    }
+	    use self::Wrapper::*;
 	
-	    fn key(&self) -> &KeyType {
-	        let Key(k) = &self else { unreachable!("Failed to unwrap Key(k)") };
-	        k
-	    }
-	
-	    fn query(&self) -> &QueryType {
-	        let Query(q) = &self else { unreachable!("Failed to unwrap Query(q)") };
-	        q
-	    }
-	}
-	
-	impl PartialEq for Wrapper {
-	    fn eq(&self, other: &Self) -> bool {
-	        self.cmp(other) == Ordering::Equal
-	    }
-	}
-	
-	impl Eq for Wrapper {}
-	
-	impl PartialOrd for Wrapper {
-	    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-	        Some(self.cmp(other))
-	    }
-	}
-	
-	impl Ord for Wrapper {
-	    fn cmp(&self, other: &Self) -> Ordering {
-	        match (self, other) {
-	            (Key(k1), Key(k2)) => {
-	                self.cmp_key(k1, k2)
-	            }
-	            (Query(q), Key(k)) => {
-	                self.cmp_query(q, k)
-	            }
-	            (Key(k), Query(q)) => {
-	                other.cmp_query(q, k).reverse()
-	            }
-	            (Query(_), Query(_)) => {
-	                unreachable!("Invalid comparison")
-	            }
+	    impl Wrapper {
+	        fn cmp_key(&self, k1: &KeyType, k2: &KeyType) -> Ordering {
+	            k1.0.a.cmp(&k2.0.a)
 	        }
-	    }
-	}
 	
-	#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-	struct Line {
-	    a: i128,
-	    b: i128,
-	}
+	        fn cmp_query(&self, q: &QueryType, k: &KeyType) -> Ordering {
+	            0.cmp(&(k.1*q.0 + k.2*q.1))
+	        }
 	
-	impl Line {
-	    const fn new(a: i128, b: i128) -> Self {
-	        Self { a, b }
-	    }
+	        fn key(&self) -> &KeyType {
+	            let Key(k) = &self else { unreachable!("Failed to unwrap Key(k)") };
+	            k
+	        }
 	
-	    fn eval(self, x: i64) -> i128 {
-	        self.a * x as i128 + self.b
-	    }
-	}
-	
-	struct ConvexHullTrick {
-	    lines: BTreeSet<Wrapper>,
-	    max_query: bool,
-	}
-	
-	impl ConvexHullTrick {
-	    fn new(max_query: bool) -> Self {
-	        Self {
-	            lines: BTreeSet::new(),
-	            max_query: max_query,
+	        fn query(&self) -> &QueryType {
+	            let Query(q) = &self else { unreachable!("Failed to unwrap Query(q)") };
+	            q
 	        }
 	    }
 	
-	    #[inline]
-	    fn is_bad_line(&self, lp: Line, lc: Line, ln: Line) -> bool {
-	        return (lc.b - lp.b) * (ln.a - lc.a)
-	            >= (ln.b - lc.b) * (lc.a - lp.a);
+	    impl PartialEq for Wrapper {
+	        fn eq(&self, other: &Self) -> bool {
+	            self.cmp(other) == Ordering::Equal
+	        }
 	    }
 	
-	    // Add line y = a*x + b
-	    fn add_line(&mut self, mut a: i64, mut b: i64) {
-	        if self.max_query {
-	            a = -a;
-	            b = -b;
+	    impl Eq for Wrapper {}
+	
+	    impl PartialOrd for Wrapper {
+	        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+	            Some(self.cmp(other))
+	        }
+	    }
+	
+	    impl Ord for Wrapper {
+	        fn cmp(&self, other: &Self) -> Ordering {
+	            match (self, other) {
+	                (Key(k1), Key(k2)) => {
+	                    self.cmp_key(k1, k2)
+	                }
+	                (Query(q), Key(k)) => {
+	                    self.cmp_query(q, k)
+	                }
+	                (Key(k), Query(q)) => {
+	                    other.cmp_query(q, k).reverse()
+	                }
+	                (Query(_), Query(_)) => {
+	                    unreachable!("Invalid comparison")
+	                }
+	            }
+	        }
+	    }
+	
+	    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+	    struct Line {
+	        a: T,
+	        b: T,
+	    }
+	
+	    impl Line {
+	        const fn new(a: T, b: T) -> Self {
+	            Self { a, b }
 	        }
 	
-	        let new = Line::new(a as i128, b as i128);
+	        fn eval(self, p: T, d: T) -> T {
+	            self.a*p + self.b*d
+	        }
+	    }
 	
-	        // 傾きが同じ直線との比較
-	        if let Some(old_w) = self.lines.get(&Key((new, 0, 0))) {
-	            if old_w.key().0.b <= new.b {
+	    pub struct ConvexHullTrick {
+	        lines: BTreeSet<Wrapper>,
+	        max_query: bool,
+	    }
+	
+	    impl ConvexHullTrick {
+	        pub fn new(max_query: bool) -> Self {
+	            Self {
+	                lines: BTreeSet::new(),
+	                max_query: max_query,
+	            }
+	        }
+	
+	        #[inline]
+	        fn is_bad_line(&self, lp: Line, lc: Line, ln: Line) -> bool {
+	            return (lc.b - lp.b) * (ln.a - lc.a)
+	                >= (ln.b - lc.b) * (lc.a - lp.a);
+	        }
+	
+	        // Add line y = a*x + b
+	        pub fn add_line(&mut self, mut a: T, mut b: T) {
+	            if self.max_query {
+	                a = -a;
+	                b = -b;
+	            }
+	
+	            let new = Line::new(a, b);
+	
+	            // 傾きが同じ直線との比較
+	            if let Some(old_w) = self.lines.get(&Key((new, 0, 0))) {
+	                if old_w.key().0.b <= new.b {
+	                    return;
+	                }
+	                self.lines.remove(&old_w.clone());
+	            }
+	
+	            let mut it_back = self.lines.range(..Key((new, 0, 0)));
+	            let mut it_forw = self.lines.range(Key((new, 0, 0))..);
+	
+	            // 直線newを追加するか？
+	            if let Some(prev_w) = it_back.clone().nth_back(0)
+	                && let Some(next_w) = it_forw.clone().nth(0)
+	                && self.is_bad_line(prev_w.key().0, new, next_w.key().0)
+	            {
 	                return;
 	            }
-	            self.lines.remove(&old_w.clone());
+	
+	            let mut insert = vec![];
+	            let mut remove = vec![];
+	
+	            // new以前の直線を更新
+	            while let Some(cur_w) = it_back.clone().nth_back(0)
+	                && let Some(prev_w) = it_back.clone().nth_back(1)
+	                && self.is_bad_line(prev_w.key().0, cur_w.key().0, new)
+	            {
+	                remove.push(cur_w.clone());
+	                it_back.next_back();
+	            }
+	
+	            // newの直前の直線を更新
+	            if let Some(cur_w) = it_back.clone().nth_back(0) {
+	                remove.push(cur_w.clone());
+	
+	                let (lp, _, _) = *cur_w.key();
+	
+	                let delta_a = new.a - lp.a;
+	                let delta_b = new.b - lp.b;
+	
+	                let new_w = Key((lp, delta_a, delta_b));
+	                insert.push(new_w);
+	            }
+	
+	            // new以降の直線を更新
+	            while let Some(cur_w) = it_forw.clone().nth(0)
+	                && let Some(next_w) = it_forw.clone().nth(1)
+	                && self.is_bad_line(new, cur_w.key().0, next_w.key().0)
+	            {
+	                remove.push(cur_w.clone());
+	                it_forw.next();
+	            }
+	
+	            // 直線newを追加
+	            if let Some(cur_w) = it_forw.clone().nth(0) {
+	                let (ln, _, _) = *cur_w.key();
+	
+	                let delta_a = ln.a - new.a;
+	                let delta_b = ln.b - new.b;
+	
+	                let new_w = Key((new, delta_a, delta_b));
+	                insert.push(new_w);
+	            }
+	            else {
+	                let new_w = Key((new, INF, INF));
+	                insert.push(new_w);
+	            }
+	
+	            // linesの更新
+	            for a in remove {
+	                self.lines.remove(&a);
+	            }
+	            for a in insert {
+	                self.lines.insert(a);
+	            }
 	        }
 	
-	        let mut it_back = self.lines.range(..Key((new, 0, 0)));
-	        let mut it_forw = self.lines.range(Key((new, 0, 0))..);
+	        pub fn query(&self, p: T, d: T) -> Option<T> {
+	            if self.lines.is_empty() {
+	                return None;
+	            }
 	
-	        // 直線newを追加するか？
-	        if let Some(prev_w) = it_back.clone().nth_back(0)
-	            && let Some(next_w) = it_forw.clone().nth(0)
-	            && self.is_bad_line(prev_w.key().0, new, next_w.key().0)
-	        {
-	            return;
+	            let l;
+	            if let Some(w) = self.lines.range(Query((p, d))..).next() {
+	                l = w.key().0;
+	            }
+	            else {
+	                let w = self.lines.last().uw();
+	                l = w.key().0;
+	            }
+	
+	            let value = l.eval(p, d);
+	            if self.max_query {
+	                Some(-value)
+	            }
+	            else {
+	                Some(value)
+	            }
 	        }
-	
-	        let mut insert = vec![];
-	        let mut remove = vec![];
-	
-	        // new以前の直線を更新
-	        while let Some(cur_w) = it_back.clone().nth_back(0)
-	            && let Some(prev_w) = it_back.clone().nth_back(1)
-	            && self.is_bad_line(prev_w.key().0, cur_w.key().0, new)
-	        {
-	            remove.push(cur_w.clone());
-	            it_back.next_back();
-	        }
-	
-	        // newの直前の直線を更新
-	        if let Some(cur_w) = it_back.clone().nth_back(0) {
-	            remove.push(cur_w.clone());
-	
-	            let (lp, _, _) = *cur_w.key();
-	
-	            let delta_a = new.a - lp.a;
-	            let delta_b = new.b - lp.b;
-	
-	            let new_w = Key((lp, delta_a, delta_b));
-	            insert.push(new_w);
-	        }
-	
-	        // new以降の直線を更新
-	        while let Some(cur_w) = it_forw.clone().nth(0)
-	            && let Some(next_w) = it_forw.clone().nth(1)
-	            && self.is_bad_line(new, cur_w.key().0, next_w.key().0)
-	        {
-	            remove.push(cur_w.clone());
-	            it_forw.next();
-	        }
-	
-	        // 直線newを追加
-	        if let Some(cur_w) = it_forw.clone().nth(0) {
-	            let (ln, _, _) = *cur_w.key();
-	
-	            let delta_a = ln.a - new.a;
-	            let delta_b = ln.b - new.b;
-	
-	            let new_w = Key((new, delta_a, delta_b));
-	            insert.push(new_w);
-	        }
-	        else {
-	            let new_w = Key((new, IINF as i128, IINF as i128));
-	            insert.push(new_w);
-	        }
-	
-	        // linesの更新
-	        for a in remove {
-	            self.lines.remove(&a);
-	        }
-	        for a in insert {
-	            self.lines.insert(a);
-	        }
-	    }
-	
-	    fn query(&self, x: i64) -> Option<i128> {
-	        if self.lines.is_empty() {
-	            return None;
-	        }
-	        let l;
-	        if let Some(w) = self.lines.range(Query(x as i128)..).next() {
-	            l = w.key().0;
-	        }
-	        else {
-	            let w = self.lines.last().uw();
-	            l = w.key().0;
-	        }
-	        if self.max_query {
-	            return Some(-l.eval(x));
-	        }
-	        return Some(l.eval(x));
 	    }
 	}
-	
+	use convex_hull_trick::ConvexHullTrick;
+
 snippet snlichaotree
-	// ==================== Li Chao Tree ====================
-	// verify: https://judge.yosupo.jp/submission/414051
+	#[allow(dead_code)]
+	mod li_chao_tree {
+	    // ==================== Li Chao Tree ====================
+	    // verify: https://judge.yosupo.jp/submission/414051
 	
-	#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-	struct Line {
-	    a: i128,
-	    b: i128,
-	}
+	    use crate::*;
 	
-	impl Line {
-	    const fn new(a: i128, b: i128) -> Self {
-	        Self { a, b }
+	    type T = i128;
+	    const INF: T = IINF as i128;
+	
+	    #[derive(Clone, Copy, Debug)]
+	    pub struct Query {
+	        p: T,
+	        d: T,
 	    }
 	
-	    fn eval(self, x: i64) -> i128 {
-	        self.a * x as i128 + self.b
+	    impl Query {
+	        pub fn new(p: T, d: T) -> Self {
+	            assert!(d > 0);
+	            Self { p, d }
+	        }
 	    }
-	}
 	
-	struct LiChaoTree {
-	    n: usize,
-	    sz: usize,
-	    node: Vec<Option<Line>>,
-	    x: Vec<i64>,
-	    max_query: bool,
-	    x2i: BTreeMap<i64, usize>,
-	}
+	    impl PartialEq for Query {
+	        fn eq(&self, other: &Self) -> bool {
+	            self.cmp(other) == Ordering::Equal
+	        }
+	    }
 	
-	impl LiChaoTree {
-	    fn new(mut x: Vec<i64>, max_query: bool) -> Self {
-	        let sz = x.len();
-	        assert!(1 <= sz, "x length is 0");
+	    impl Eq for Query {}
 	
-	        let mut n = 1;
-	        while n < sz {
-	            n *= 2;
+	    impl PartialOrd for Query {
+	        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+	            Some(self.cmp(other))
+	        }
+	    }
+	
+	    impl Ord for Query {
+	        fn cmp(&self, other: &Self) -> Ordering {
+	            (self.p * other.d).cmp(&(other.p * self.d))
+	        }
+	    }
+	
+	    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+	    struct Line {
+	        a: T,
+	        b: T,
+	    }
+	
+	    impl Line {
+	        const fn new(a: T, b: T) -> Self {
+	            Self { a, b }
 	        }
 	
-	        let node = vec![None; 2*n - 1];
-	        x.sort();
-	        x.dedup();
-	
-	        let x2i = x.it()
-	            .cloned()
-	            .enumerate()
-	            .map(|(i, x)| (x, i))
-	            .collect::<BTreeMap<_, _>>();
-	
-	        x.resize(n, IINF);
-	
-	        Self { n, sz, node, x, max_query, x2i }
-	    }
-	
-	    fn add_line(&mut self, a: i64, b: i64) {
-	        self.add_line_range(.., a, b);
-	    }
-	
-	    fn add_line_range<R: RangeBounds<i64>>(&mut self, range: R, a: i64, b: i64) {
-	        let mut it = self.x2i.range(range);
-	
-	        let Some((_, &start)) = it.next() else {
-	            return;
-	        };
-	
-	        let end = it.next_back().map(|(_, &i)| i).uwor(start);
-	
-	        let line = Line::new(a as i128, b as i128);
-	        self.add_line_helper(start, end, line, 0, 0, self.n - 1);
-	    }
-	
-	    fn add_line_helper(&mut self, a: usize, b: usize, mut line: Line,
-	        k: usize, l: usize, r: usize)
-	    {
-	        if r < a || b < l {
-	            return;
+	        fn eval(self, x: Query) -> T {
+	            self.a*x.p + self.b*x.d
 	        }
-	        let m = (l + r) / 2;
-	        if a <= l && r <= b {
-	            match self.node[k] {
-	                Some(node_k) => {
-	                    let mut left  = line.eval(self.x[l]) < node_k.eval(self.x[l]);
-	                    let mut mid   = line.eval(self.x[m]) < node_k.eval(self.x[m]);
-	                    let mut right = line.eval(self.x[r]) < node_k.eval(self.x[r]);
+	    }
 	
-	                    if self.max_query {
-	                        left  = !left;
-	                        mid   = !mid;
-	                        right = !right;
+	    pub struct LiChaoTree {
+	        n: usize,
+	        node: Vec<Option<Line>>,
+	        x: Vec<Query>,
+	        max_query: bool,
+	        x2i: BTreeMap<Query, usize>,
+	    }
+	
+	    impl LiChaoTree {
+	        pub fn new(mut x: Vec<Query>, max_query: bool) -> Self {
+	            assert!(!x.is_empty());
+	
+	            x.sort();
+	            x.dedup();
+	
+	            let sz = x.len();
+	            let n = sz.next_power_of_two();
+	
+	            let node = vec![None; 2*n - 1];
+	
+	            let x2i = x.it()
+	                .copied()
+	                .enumerate()
+	                .map(|(i, x)| (x, i))
+	                .collect::<BTreeMap<_, _>>();
+	
+	            let last = *x.last().uw();
+	            x.resize(n, last);
+	
+	            Self { n, node, x, max_query, x2i }
+	        }
+	
+	        pub fn add_line(&mut self, a: T, b: T) {
+	            self.add_line_range(.., a, b);
+	        }
+	
+	        pub fn add_line_range<R: RangeBounds<Query>>(
+	            &mut self,
+	            range: R,
+	            a: T,
+	            b: T
+	        ) {
+	            let mut it = self.x2i.range(range);
+	
+	            let Some((_, &start)) = it.next() else {
+	                return;
+	            };
+	
+	            let end = it.next_back().map(|(_, &i)| i).uwor(start);
+	
+	            let line = Line::new(a, b);
+	            self.add_line_helper(start, end, line, 0, 0, self.n - 1);
+	        }
+	
+	        fn add_line_helper(&mut self, a: usize, b: usize, mut line: Line,
+	            k: usize, l: usize, r: usize)
+	        {
+	            if r < a || b < l {
+	                return;
+	            }
+	            let m = (l + r) / 2;
+	            if a <= l && r <= b {
+	                match self.node[k] {
+	                    Some(node_k) => {
+	                        let mut left  = line.eval(self.x[l]) < node_k.eval(self.x[l]);
+	                        let mut mid   = line.eval(self.x[m]) < node_k.eval(self.x[m]);
+	                        let mut right = line.eval(self.x[r]) < node_k.eval(self.x[r]);
+	
+	                        if self.max_query {
+	                            left  = !left;
+	                            mid   = !mid;
+	                            right = !right;
+	                        }
+	
+	                        if left && right {
+	                            self.node[k] = Some(line);
+	                        }
+	                        else if left || right {
+	                            if mid {
+	                                self.node[k] = Some(line);
+	                                line = node_k;
+	                            }
+	                            if left != mid {
+	                                self.add_line_helper(a, b, line, 2*k+1, l, m);
+	                            }
+	                            else {
+	                                self.add_line_helper(a, b, line, 2*k+2, m + 1, r);
+	                            }
+	                        }
 	                    }
-	
-	                    if left && right {
+	                    None => {
 	                        self.node[k] = Some(line);
 	                    }
-	                    else if left || right {
-	                        if mid {
-	                            self.node[k] = Some(line);
-	                            line = node_k;
-	                        }
-	                        if left != mid {
-	                            self.add_line_helper(a, b, line, 2*k+1, l, m);
-	                        }
-	                        else {
-	                            self.add_line_helper(a, b, line, 2*k+2, m + 1, r);
-	                        }
+	                }
+	            }
+	            else {
+	                self.add_line_helper(a, b, line, 2*k+1, l, m);
+	                self.add_line_helper(a, b, line, 2*k+2, m + 1, r);
+	            }
+	        }
+	
+	        pub fn query(&self, x: Query) -> Option<T> {
+	            let mut k = *self.x2i.get(&x)
+	                .expect("x is not included in Li Chao Tree");
+	            k += self.n - 1;
+	
+	            let mut res = if self.max_query { -INF } else { INF };
+	
+	            loop {
+	                if let Some(line) = self.node[k] {
+	                    let val = line.eval(x);
+	
+	                    if self.max_query {
+	                        chmax!(res, val);
+	                    }
+	                    else {
+	                        chmin!(res, val);
 	                    }
 	                }
-	                None => {
-	                    self.node[k] = Some(line);
-	                }
-	            }
-	        }
-	        else {
-	            self.add_line_helper(a, b, line, 2*k+1, l, m);
-	            self.add_line_helper(a, b, line, 2*k+2, m + 1, r);
-	        }
-	    }
 	
-	    fn query(&self, x: i64) -> Option<i128> {
-	        let mut k = *self.x2i.get(&x)
-	            .expect(&format!("{} is not included in x", x));
-	        k += self.n - 1;
-	
-	        let mut res = if self.max_query { i128::MIN } else { i128::MAX };
-	        loop {
-	            if let Some(line) = self.node[k] {
-	                if self.max_query {
-	                    chmax!(res, line.eval(x));
+	                if k == 0 {
+	                    break;
 	                }
-	                else {
-	                    chmin!(res, line.eval(x));
-	                }
-	            }
-	            if k == 0 {
-	                break;
-	            }
-	            k = (k - 1) / 2;
-	        }
 	
-	        if res == i128::MIN || res == i128::MAX {
-	            None
-	        }
-	        else {
-	            Some(res)
+	                k = (k - 1) / 2;
+	            }
+	
+	            if res == -INF || res == INF {
+	                None
+	            }
+	            else {
+	                Some(res)
+	            }
 	        }
 	    }
 	}
+	use li_chao_tree::{LiChaoTree, Query};
 
