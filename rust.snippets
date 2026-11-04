@@ -94,6 +94,10 @@ snippet sncompe
 	    define_cast_trait!(
 	        AsF64, f, f64, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
 	    );
+	    define_cast_trait!(
+	        AsI128, l, i128, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, char, f32,
+	        f64
+	    );
 	
 	    pub trait AsMint {
 	        fn m(self) -> Mint;
@@ -2286,3 +2290,23 @@ snippet snlichaotree
 	}
 	use li_chao_tree::{LiChaoTree, Query};
 
+snippet sndiameter
+	fn tree_diameter_helper(g: &UGraph, u: usize, p: usize) -> (usize, usize) {
+	    let mut su = u;
+	    let mut du = 0;
+	    for &v in &g[u] {
+	        if v == p { continue; }
+	        let (dv, sv) = tree_diameter_helper(g, v, u);
+	        if chmax!(du, dv + 1) {
+	            su = sv;
+	        }
+	    }
+	    (du, su)
+	}
+	
+	fn tree_diameter(g: &UGraph) -> (usize, usize, usize) {
+	    let (_, s) = tree_diameter_helper(g, 0, usize::MAX);
+	    let (d, t) = tree_diameter_helper(g, s, usize::MAX);
+	    (d, s, t)
+	}
+	
