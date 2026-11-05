@@ -7,7 +7,7 @@ snippet sncompe
 	// 　　　　　　　　　.· ´¸.·´¨) ¸.·¨)
 	// 　　　　　　　　　　(¸.·´ ✧(¸.·’*✧
 	
-	#![allow(dead_code, unused_imports, unused_macros)]
+	#![allow(dead_code, unused_imports, unused_macros, unexpected_cfgs)]
 	
 	#[macro_use]
 	mod matajupilib {
@@ -276,20 +276,51 @@ snippet sncompe
 	        }
 	    }
 	    impl<T: ?Sized> IterExt for T {}
+
+	    // =============================================================================
+	    // Scanner
+	    // =============================================================================
+	    use std::io::Read;
+	
+	    pub struct Scanner {
+	        iter: std::vec::IntoIter<String>,
+	    }
+	
+	    impl Scanner {
+	        pub fn new() -> Self {
+	            let mut s = String::new();
+	            std::io::stdin().read_to_string(&mut s).unwrap();
+	            Self {
+	                iter: s.split_whitespace().map(|s| s.to_string())
+	                    .collect::<Vec<_>>().into_iter(),
+	            }
+	        }
+	        pub fn n<T: std::str::FromStr>(&mut self) -> T {
+	            self.iter.next().unwrap().parse().ok().unwrap()
+	        }
+	        pub fn ns<T: std::str::FromStr>(&mut self, n: usize) -> Vec<T> {
+	            (0..n).map(|_| self.n()).collect()
+	        }
+	    }
 	}
 	
 	// =============================================================================
 	// Imports & Main
 	// =============================================================================
-	use ::num::{integer::*, rational::*, *};
-	use ac_library::*;
+	// AtCoder
 	use amplify::*;
-	use itertools::Itertools;
 	use omniswap::swap;
 	use ordered_float::OrderedFloat as OF;
-	use proconio::{marker::*, *};
 	use rand::Rng;
 	use superslice::Ext;
+	
+	// yukicoder
+	use ::num::{integer::*, rational::*, *};
+	use itertools::Itertools;
+	use ac_library::*;
+	use proconio::{marker::*, *};
+	
+	// Other
 	use std::cmp::{Reverse as R, *};
 	use std::collections::{HashMap as Map, HashSet as Set, *};
 	use std::f64::consts::*;
@@ -297,7 +328,9 @@ snippet sncompe
 	use std::mem::*;
 	use std::ops::{Range, RangeBounds};
 	
+	// AtCoder, yukicoder
 	use ac_library::ModInt998244353 as Mint;
+	// Other
 	// type Mint = i64;
 	
 	use matajupilib::*;
@@ -2308,5 +2341,72 @@ snippet sndiameter
 	    let (_, s) = tree_diameter_helper(g, 0, usize::MAX);
 	    let (d, t) = tree_diameter_helper(g, s, usize::MAX);
 	    (d, s, t)
+	}
+	
+snippet sncrt
+	fn crt(a: &[i64], m: &[i64]) -> i64 {
+	    assert!(a.len() == m.len());
+	
+	    let n = a.len();
+	    let m_p = m.it().product::<i64>();
+	    let mut x = 0;
+	
+	    for i in 0..n {
+	        let mi = m_p / m[i];
+	        let xi = i64::extended_gcd(&mi, &-m[i]).x;
+	        let ei = (xi * mi) % m_p;
+	        x = (x + a[i] * ei) % m_p;
+	    }
+	
+	    x
+	}
+	
+snippet sncrt2
+	fn crt(a: &[i64], m: &[i64]) -> (i64, Vec<i64>) {
+	    assert!(a.len() == m.len());
+	
+	    let n = a.len();
+	    let mut c = vec![0; n];
+	    let mut m_prod = 1;
+	    let mut x = 0;
+	    for i in 0..n {
+	        let mut b = i64::extended_gcd(&m_prod, &-m[i]).x;
+	        b = (b + m[i]) % m[i];
+	        c[i] = ((a[i] - x + m_prod * m[i]) % m[i]) * b % m[i];
+	        x = x + c[i] * m_prod;
+	        m_prod *= m[i]
+	    }
+	
+	    (x, c)
+	}
+
+snippet sncrt3
+	fn crt(a: &[i64], m: &[i64]) -> Vec<i64> {
+	    assert!(a.len() == m.len());
+	
+	    let n = a.len();
+	    let mut c = vec![0; n];
+	    for i in 0..n {
+	        let mut xi = 0;
+	        let mut m_prod = 1;
+	        for j in 0..i {
+	            xi = (xi + c[j] * m_prod) % m[i];
+	            m_prod = (m_prod * m[j]) % m[i];
+	        }
+	        let mut b = i64::extended_gcd(&m_prod, &-m[i]).x;
+	        b = (b + m[i]) % m[i];
+	        c[i] = ((a[i] - xi + m[i]) % m[i]) * b % m[i];
+	    }
+	
+	    c
+	}
+	
+	fn calc_x(c: &[i64], m: &[i64], modi: i64) -> i64 {
+	    let n = c.len();
+	    let mut x = 0;
+	    for i in (0..n).rev() {
+	        x = ((x * m[i]) % modi + c[i]) % modi;
+	    }
+	    x
 	}
 	
