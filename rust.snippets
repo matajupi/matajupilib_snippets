@@ -2017,6 +2017,8 @@ snippet sncht
 	            }
 	        }
 	
+	        // x = p/d における最大/最小値を取得 (ただし，答えは d 倍にスケールされている)
+	        // d*max_i f_i(p/d) (d*min_i f_i(p/d))
 	        pub fn query(&self, p: T, d: T) -> Option<T> {
 	            if self.lines.is_empty() {
 	                return None;
@@ -2205,6 +2207,8 @@ snippet snlichaotree
 	            }
 	        }
 	
+	        // x = p/d における最大/最小値を取得 (ただし，答えは d 倍にスケールされている)
+	        // d*max_i f_i(p/d) (d*min_i f_i(p/d))
 	        pub fn query(&self, x: Query) -> Option<T> {
 	            let mut k = *self.x2i.get(&x)
 	                .expect("x is not included in Li Chao Tree");
