@@ -434,35 +434,6 @@ snippet snmatrix
 	    res
 	}
 	
-snippet snmath
-	fn enum_primes(n: u32) -> Vec<u32> {
-	    let mut primes = vec![];
-	    if n < 2 {
-	        return primes;
-	    }
-	
-	    let mut sieve = vec![true; (n + 1).u()];
-	    sieve[0] = false;
-	    sieve[1] = false;
-	
-	    let mut p = 1;
-	    while p * p <= n {
-	        if sieve[p.u()] {
-	            for q in (p * p..=n).step_by(p.u()) {
-	                sieve[q.u()] = false;
-	            }
-	        }
-	        p += 1;
-	    }
-	    for p in 2..=n {
-	        if sieve[p.u()] {
-	            primes.push(p);
-	        }
-	    }
-	
-	    primes
-	}
-
 snippet sngraph
 	type WGraph<T> = Vec<Vec<(usize, T)>>;
 	type UGraph = Vec<Vec<usize>>;
@@ -519,26 +490,6 @@ snippet sncmprs
 	        .collect::<HashMap<_, _>>();
 	    (v2i, i2v)
 	}
-
-snippet snfactorize
-	fn factorize(mut n: i64, pfs: &mut HashMap<i64, usize>) {
-	    let mut p = 2;
-	    while p*p <= n {
-	        let mut e = 0;
-	        while n % p == 0 {
-	            n /= p;
-	            e += 1;
-	        }
-	        if e > 0 {
-	            *pfs.entry(p).or_insert(0) += e;
-	        }
-	        p += 1;
-	    }
-	    if n != 1 {
-	        *pfs.entry(n).or_insert(0) += 1;
-	    }
-	}
-	
 
 snippet snrollinghash
 	use std::ops::{Bound, RangeBounds};
@@ -1025,7 +976,7 @@ snippet snscc
 	        }
 	    }
 	
-	    let mut uv_scc = set!{};
+	    let mut uv_scc = HashSet::new();
 	    for u in 0..n {
 	        for &v in &g[u] {
 	            let u = to_scc[u];
@@ -1129,44 +1080,6 @@ snippet snrangelcm
 	    }
 	    fn binary_operation(a: &Self::S, b: &Self::S) -> Self::S {
 	        lcm(*a, *b)
-	    }
-	}
-	
-snippet snosak
-	struct Osa_k {
-	    spf: Vec<usize>,
-	}
-	
-	impl Osa_k {
-	    fn new(max_val: usize) -> Self {
-	        let mut spf = (0..=max_val).collect_vec();
-	        let mut i = 2;
-	        while i * i <= max_val {
-	            if spf[i] == i {
-	                let mut j = i * i;
-	                while j <= max_val {
-	                    if spf[j] == j {
-	                        spf[j] = i;
-	                    }
-	                    j += i;
-	                }
-	            }
-	            i += 1;
-	        }
-	        Self { spf }
-	    }
-	    fn factorize(&self, mut x: usize) -> Vec<(usize, usize)> {
-	        let mut res = vec![];
-	        while x > 1 {
-	            let p = self.spf[x];
-	            let mut e = 0;
-	            while x % p == 0 {
-	                x /= p;
-	                e += 1;
-	            }
-	            res.push((p, e));
-	        }
-	        res
 	    }
 	}
 
@@ -1461,6 +1374,7 @@ snippet snmultiset
 	use procon_lib::MultiSet;
 
 snippet sncombination
+	#[derive(Clone, Debug)]
 	pub struct Combinations {
 	    fac: Vec<Mint>,
 	    ifac: Vec<Mint>,
@@ -1593,6 +1507,7 @@ snippet snhld
 	    reversed: bool,
 	}
 	
+	#[derive(Clone, Debug)]
 	struct Hld {
 	    n: usize,
 	    root: usize,
@@ -1728,7 +1643,9 @@ snippet snhld
 	    fn lca(&self, mut u: usize, mut v: usize) -> usize {
 	        while self.head[u] != self.head[v] {
 	            if self.pos[u] > self.pos[v] {
-	                swap!(&mut u, &mut v);
+	                let t = u;
+	                u = v;
+	                v = t;
 	            }
 	            v = self.parent[self.head[v]];
 	        }
@@ -1994,6 +1911,7 @@ snippet sncht
 	        }
 	    }
 	
+		#[derive(Clone, Debug)]
 	    pub struct ConvexHullTrick {
 	        lines: BTreeSet<Wrapper>,
 	        max_query: bool,
@@ -2185,6 +2103,7 @@ snippet snlichaotree
 	        }
 	    }
 	
+		#[derive(Clone, Debug)]
 	    pub struct LiChaoTree {
 	        n: usize,
 	        node: Vec<Option<Line>>,
@@ -2342,71 +2261,264 @@ snippet sndiameter
 	    let (d, t) = tree_diameter_helper(g, s, usize::MAX);
 	    (d, s, t)
 	}
-	
-snippet sncrt
-	fn crt(a: &[i64], m: &[i64]) -> i64 {
-	    assert!(a.len() == m.len());
-	
-	    let n = a.len();
-	    let m_p = m.it().product::<i64>();
-	    let mut x = 0;
-	
-	    for i in 0..n {
-	        let mi = m_p / m[i];
-	        let xi = i64::extended_gcd(&mi, &-m[i]).x;
-	        let ei = (xi * mi) % m_p;
-	        x = (x + a[i] * ei) % m_p;
-	    }
-	
-	    x
-	}
-	
-snippet sncrt2
-	fn crt(a: &[i64], m: &[i64]) -> (i64, Vec<i64>) {
-	    assert!(a.len() == m.len());
-	
-	    let n = a.len();
-	    let mut c = vec![0; n];
-	    let mut m_prod = 1;
-	    let mut x = 0;
-	    for i in 0..n {
-	        let mut b = i64::extended_gcd(&m_prod, &-m[i]).x;
-	        b = (b + m[i]) % m[i];
-	        c[i] = ((a[i] - x + m_prod * m[i]) % m[i]) * b % m[i];
-	        x = x + c[i] * m_prod;
-	        m_prod *= m[i]
-	    }
-	
-	    (x, c)
-	}
 
-snippet sncrt3
-	fn crt(a: &[i64], m: &[i64]) -> Vec<i64> {
-	    assert!(a.len() == m.len());
+snippet snprimes
+	mod primes {
+	    // ==================== Prime Number Library ====================
+	    use crate::*;
 	
-	    let n = a.len();
-	    let mut c = vec![0; n];
-	    for i in 0..n {
-	        let mut xi = 0;
-	        let mut m_prod = 1;
-	        for j in 0..i {
-	            xi = (xi + c[j] * m_prod) % m[i];
-	            m_prod = (m_prod * m[j]) % m[i];
+	    pub fn factorize(mut n: i64, pfs: &mut HashMap<i64, usize>) {
+	        for p in 2.. {
+	            if p * p > n {
+	                break;
+	            }
+	
+	            let mut e = 0;
+	            while n % p == 0 {
+	                n /= p;
+	                e += 1;
+	            }
+	
+	            if e > 0 {
+	                *pfs.entry(p).or_insert(0) += e;
+	            }
 	        }
-	        let mut b = i64::extended_gcd(&m_prod, &-m[i]).x;
-	        b = (b + m[i]) % m[i];
-	        c[i] = ((a[i] - xi + m[i]) % m[i]) * b % m[i];
+	
+	        if n != 1 {
+	            *pfs.entry(n).or_insert(0) += 1;
+	        }
 	    }
 	
-	    c
-	}
+	    // 素因数分解する最大値をMとしてsqrt(M)までのprimesを求めておく
+	    // Mが小さい時はOsa-k法も検討する
+	    pub fn factorize_with_primes(
+	        mut n: i64,
+	        primes: &[usize],
+	        pfs: &mut HashMap<i64, usize>
+	    ) {
+	        for &p in primes {
+	            let p = p.i();
+	            if p * p > n {
+	                break;
+	            }
 	
-	fn calc_x(c: &[i64], m: &[i64], modi: i64) -> i64 {
-	    let n = c.len();
-	    let mut x = 0;
-	    for i in (0..n).rev() {
-	        x = ((x * m[i]) % modi + c[i]) % modi;
+	            let mut e = 0;
+	            while n % p == 0 {
+	                n /= p;
+	                e += 1;
+	            }
+	
+	            if e > 0 {
+	                *pfs.entry(p).or_insert(0) += e;
+	            }
+	        }
+	
+	        if n != 1 {
+	            *pfs.entry(n).or_insert(0) += 1;
+	        }
 	    }
-	    x
-	}
 	
+	    // Eratosthenes sieve
+	    pub fn sieve(n: usize) -> Vec<usize> {
+	        let mut is_prime = vec![true; n + 1];
+	        is_prime[0] = false;
+	        is_prime[1] = false;
+	
+	        for i in 2.. {
+	            if i*i > n {
+	                break;
+	            }
+	
+	            if is_prime[i] {
+	                for j in (i*i..=n).step_by(i) {
+	                    is_prime[j] = false;
+	                }
+	            }
+	        }
+	
+	        (2..=n).filter(|&i| is_prime[i]).collect()
+	    }
+	
+	    // osa_k method
+	    #[derive(Clone, Debug)]
+	    pub struct OsaK {
+	        spf: Vec<usize>,
+	    }
+	
+	    impl OsaK {
+	        pub fn new(max_val: usize) -> Self {
+	            let mut spf = (0..=max_val).collect_vec();
+	            let mut i = 2;
+	            while i * i <= max_val {
+	                if spf[i] == i {
+	                    let mut j = i * i;
+	                    while j <= max_val {
+	                        if spf[j] == j {
+	                            spf[j] = i;
+	                        }
+	                        j += i;
+	                    }
+	                }
+	                i += 1;
+	            }
+	            Self { spf }
+	        }
+	
+	        pub fn factorize(&self, mut x: usize) -> Vec<(usize, usize)> {
+	            let mut res = vec![];
+	            while x > 1 {
+	                let p = self.spf[x];
+	                let mut e = 0;
+	                while x % p == 0 {
+	                    x /= p;
+	                    e += 1;
+	                }
+	                res.push((p, e));
+	            }
+	            res
+	        }
+	    }
+	}
+	use primes::*;
+
+snippet sncrt
+	mod crt {
+	    // ==================== Chinese Reminder Theorem ====================
+	    // verify: https://yukicoder.me/submissions/1197556
+	    // verify: https://yukicoder.me/submissions/1197557
+	
+	    use crate::*;
+	    #[derive(Clone, Debug)]
+	    pub struct Crt {
+	        // prime -> (maximum prime power, corresponding residue)
+	        pp: BTreeMap<i64, (i64, i64)>,
+	        // Whether all added constraints are consistent.
+	        ok: bool,
+	    }
+	
+	    impl Crt {
+	        pub fn new() -> Self {
+	            Self {
+	                pp: BTreeMap::new(),
+	                ok: true,
+	            }
+	        }
+	
+	        // Add constraint A ≡ x (mod y)
+	        pub fn add(&mut self, x: i64, y: i64) -> bool {
+	            if !self.ok {
+	                return false;
+	            }
+	
+	            let mut pfs = HashMap::new();
+	            factorize(y, &mut pfs);
+	
+	            for (p, e) in pfs {
+	                let q = pow(p, e);
+	                let r = x.rem_euclid(q);
+	
+	                if !self.add_prime_power(p, q, r) {
+	                    self.ok = false;
+	                    return false;
+	                }
+	            }
+	
+	            true
+	        }
+	
+	        pub fn is_consistent(&self) -> bool {
+	            self.ok
+	        }
+	
+	        pub fn crt(&self) -> Option<(i64, i64, Vec<i64>)> {
+	            if !self.ok {
+	                return None;
+	            }
+	
+	            let mut c = vec![0; self.pp.len()];
+	            let mut m_prod = 1;
+	            let mut x = 0_i64;
+	
+	            for (i, &(m, a)) in self.pp.values().enumerate() {
+	                let b = i64::extended_gcd(&m_prod, &m).x
+	                    .rem_euclid(m);
+	                let delta = (a.rem_euclid(m) - x.rem_euclid(m))
+	                    .rem_euclid(m);
+	                c[i] = ((delta.l() * b.l()) % m.l()).i();
+	                x += c[i] * m_prod;
+	                m_prod *= m;
+	            }
+	
+	            Some((x, m_prod, c))
+	        }
+	
+	        pub fn mix_radix_large(&self) -> Option<Vec<i64>> {
+	            if !self.ok {
+	                return None;
+	            }
+	
+	            let m = self.pp.values().map(|&(m, _)| m.l()).colv();
+	            let a = self.pp.values().map(|&(_, a)| a.l()).colv();
+	            let n = self.pp.len();
+	
+	            let mut c = vec![0; n];
+	
+	            for i in 0..n {
+	                let mut x = 0_i128;
+	                let mut m_prod = 1_i128;
+	
+	                for j in 0..i {
+	                    x = (x + c[j].l() * m_prod) % m[i];
+	                    m_prod = (m_prod * m[j]) % m[i];
+	                }
+	
+	                let b = i128::extended_gcd(&m_prod, &m[i]).x
+	                    .rem_euclid(m[i]);
+	                let delta = (a[i] - x).rem_euclid(m[i]);
+	                c[i] = (delta * b % m[i]).i();
+	            }
+	
+	            Some(c)
+	        }
+	
+	        pub fn crt_large(&self, modulus: i64) -> Option<(i64, i64, Vec<i64>)> {
+	            let modulus = modulus.l();
+	
+	            let c = self.mix_radix_large()?;
+	
+	            let mut m_prod = 1_i128;
+	            let mut x = 0_i128;
+	
+	            for (&(m, _), &c) in self.pp.values().zip(c.it()) {
+	                x = (x + c.l() * m_prod) % modulus;
+	                m_prod = (m_prod * m.l()) % modulus;
+	            }
+	
+	            Some((x.i(), m_prod.i(), c))
+	        }
+	
+	        // Add A ≡ r (mod q), where q is a power of p.
+	        fn add_prime_power(&mut self, p: i64, q: i64, r: i64) -> bool {
+	            if let Some((old_q, old_r)) = self.pp.get_mut(&p) {
+	                if q > *old_q {
+	                    if r % *old_q != *old_r {
+	                        return false;
+	                    }
+	
+	                    *old_q = q;
+	                    *old_r = r;
+	                } else {
+	                    if *old_r % q != r {
+	                        return false;
+	                    }
+	                }
+	            } else {
+	                self.pp.insert(p, (q, r));
+	            }
+	
+	            true
+	        }
+	    }
+	}
+	use crt::Crt;
+
