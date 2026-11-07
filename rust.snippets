@@ -2526,3 +2526,38 @@ snippet sncrt
 	}
 	use crt::Crt;
 
+snippet sncycledecomp
+	pub fn cycle_decomposition(p: &[usize]) -> (Vec<Vec<usize>>, Vec<usize>) {
+	    let n = p.len();
+	
+	    // Validate permutation.
+	    let mut seen = vec![false; n];
+	
+	    for &v in p {
+	        assert!(v < n && !seen[v], "Invalid permutation");
+	        seen[v] = true;
+	    }
+	
+	    let mut group = vec![usize::MAX; n];
+	    let mut cycles = vec![];
+	
+	    for i in 0..n {
+	        if group[i] != usize::MAX {
+	            continue;
+	        }
+	
+	        let mut cycle = Vec::new();
+	        let mut v = i;
+	
+	        while group[v] == usize::MAX {
+	            group[v] = cycles.len();
+	            cycle.push(v);
+	            v = p[v];
+	        }
+	
+	        cycles.push(cycle);
+	    }
+	
+	    (cycles, group)
+	}
+
